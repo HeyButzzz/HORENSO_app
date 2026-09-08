@@ -1,0 +1,15 @@
+{% import "partials/icons.html" as ico %}
+<div class="flex items-center justify-center gap-2 mb-8 text-xs font-semibold fade-up">
+  {% for n, label in [(1,'Hokoku'), (2,'Renraku'), (3,'Sodan')] %}
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-full grid place-items-center transition-all duration-300
+        {% if step > n %} bg-brand text-white
+        {% elif step == n %} bg-brand text-white ring-4 ring-brand/20
+        {% else %} bg-slate-100 text-slate-400 {% endif %}">
+        {% if step > n %}{{ ico.icon('check', 'w-3.5 h-3.5', 2.4) }}{% else %}{{ n }}{% endif %}
+      </div>
+      <span class="{{ 'text-brand' if step >= n else 'text-slate-400' }}">{{ label }}</span>
+    </div>
+    {% if n < 3 %}<div class="w-8 h-0.5 rounded-full transition-colors duration-300 {{ 'bg-brand' if step > n else 'bg-slate-200' }}"></div>{% endif %}
+  {% endfor %}
+</div>

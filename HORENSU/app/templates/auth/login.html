@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Masuk &middot; {{ theme.app_name if theme else 'HORENSO' }}{% endblock %}
+{% block guest_content %}
+<div class="auth-bg min-h-screen flex items-center justify-center px-4"
+     style="--auth-tint: {{ theme.primary_color if theme else '#4F46E5' }}; --auth-ground: {{ theme.background_color if theme else '#F8FAFC' }};">
+  <div class="w-full max-w-md">
+    <div class="card p-8 fade-up">
+      <div class="flex flex-col items-center text-center mb-6">
+        {% if theme and theme.logo_src %}
+          <img src="{{ theme.logo_src }}" class="w-12 h-12 rounded-2xl object-contain bg-white mb-3" alt="logo">
+        {% else %}
+          <div class="w-14 h-14 rounded-2xl bg-brand text-white grid place-items-center font-bold text-xl mb-3">H</div>
+        {% endif %}
+        <h1 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+          Selamat datang kembali <span class="text-brand">{{ ico.icon('hand', 'w-5 h-5') }}</span>
+        </h1>
+        <p class="text-sm text-slate-400 mt-1">{{ theme.welcome_message if theme else "Let's solve it together." }}</p>
+      </div>
+
+      <form method="post" class="space-y-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
+          <label class="label">Email / Username</label>
+          <input type="text" name="identifier" required class="input" placeholder="nama.pengguna atau email">
+        </div>
+        <div x-data="{ show:false }">
+          <label class="label">Password</label>
+          <div class="relative">
+            <input :type="show ? 'text' : 'password'" name="password" required class="input pr-10" placeholder="••••••••">
+            <button type="button" @click="show=!show" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition" :aria-label="show ? 'Sembunyikan password' : 'Tampilkan password'">
+              <span x-show="!show">{{ ico.icon('eye', 'w-4 h-4') }}</span>
+              <span x-show="show" x-cloak>{{ ico.icon('eye-off', 'w-4 h-4') }}</span>
+            </button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <label class="flex items-center gap-2 text-slate-500">
+            <input type="checkbox" name="remember" class="rounded"> Ingat saya
+          </label>
+          <a href="{{ url_for('auth.forgot_password') }}" class="text-brand font-medium">Lupa password?</a>
+        </div>
+        <button type="submit" class="btn-primary w-full flex items-center justify-center gap-2">{{ ico.icon('logout', 'w-4 h-4') }} Masuk</button>
+      </form>
+
+      <p class="text-center text-xs text-slate-400 mt-6 italic">
+        "{{ theme.login_tagline if theme else 'Every problem is a chance to improve.' }}"
+      </p>
+    </div>
+    <p class="text-center text-xs text-slate-300 mt-6">Copy Right Digital Farmasi 2026.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Priorities & SLA{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+  {{ ico.icon('settings', 'w-5 h-5 text-slate-400') }} Administration
+</h1>
+{% include "admin/_nav.html" %}
+<div class="card divide-y divide-slate-50 stagger fade-up">
+  {% for p in priorities %}
+    <form method="post" action="{{ url_for('admin.edit_priority', pr_id=p.id) }}" class="flex flex-wrap items-center gap-3 p-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <span class="pill" style="background: {{ p.color }}22; color: {{ p.color }}">{{ ico.priority_dot(p) }}{{ p.code }}</span>
+      <input type="text" name="label" value="{{ p.label }}" class="input flex-1 min-w-[160px]">
+      <input type="color" name="color" value="{{ p.color }}" class="w-10 h-10 rounded-lg border-0">
+      <div class="flex items-center gap-1 text-sm">
+        <input type="number" name="sla_hours" value="{{ p.sla_hours }}" class="input !w-24">
+        <span class="text-slate-400 text-xs">jam SLA</span>
+      </div>
+      <button class="btn-soft text-xs flex items-center gap-1.5">{{ ico.icon('check', 'w-3.5 h-3.5') }} Simpan</button>
+    </form>
+  {% endfor %}
+</div>
+{% endblock %}

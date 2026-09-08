@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Laporkan Masalah &middot; Sodan{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  {% include "partials/wizard_progress.html" %}
+  <div class="text-center mb-6 fade-up">
+    <h1 class="text-xl font-extrabold text-slate-800">Do you need advice or a decision?</h1>
+    <p class="text-sm text-slate-400 mt-1">Tidak apa-apa jika Anda belum tahu solusinya.</p>
+  </div>
+
+  <form method="post" class="card p-6 space-y-4 fade-up" style="animation-delay:.06s" x-data="{ needs: '{{ draft.get('needs_consultation', false) | lower }}' === 'true' ? 'yes' : 'no' }">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid grid-cols-2 gap-3">
+      <label class="border rounded-2xl p-4 text-center cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand/5">
+        <input type="radio" name="needs_consultation" value="no" class="hidden" x-model="needs">
+        <div class="grid place-items-center mb-2 text-brand">{{ ico.icon('check-circle', 'w-7 h-7') }}</div>
+        <div class="font-semibold text-sm">Tidak</div>
+        <div class="text-xs text-slate-400 mt-1">Saya bisa melanjutkan penyelesaian sendiri</div>
+      </label>
+      <label class="border rounded-2xl p-4 text-center cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand/5">
+        <input type="radio" name="needs_consultation" value="yes" class="hidden" x-model="needs">
+        <div class="grid place-items-center mb-2 text-brand">{{ ico.icon('hand', 'w-7 h-7') }}</div>
+        <div class="font-semibold text-sm">Ya</div>
+        <div class="text-xs text-slate-400 mt-1">Saya membutuhkan konsultasi</div>
+      </label>
+    </div>
+
+    <div x-show="needs === 'yes'" x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 -translate-y-3" x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-3"
+         class="space-y-4 pt-2 border-t border-slate-100 mt-4">
+      <div>
+        <label class="label">Apa yang perlu Anda diskusikan?</label>
+        <textarea name="question" rows="2" class="input" placeholder='Contoh: "Apakah kita perlu memindahkan analisis ke HPLC-01?"'>{{ draft.get('consult_question','') }}</textarea>
+      </div>
+      <div>
+        <label class="label">Keputusan apa yang dibutuhkan?</label>
+        <textarea name="decision_needed" rows="2" class="input">{{ draft.get('consult_decision_needed','') }}</textarea>
+      </div>
+      <div>
+        <label class="label">Usulan solusi (opsional)</label>
+        <textarea name="suggested_solution" rows="2" class="input">{{ draft.get('consult_suggested','') }}</textarea>
+      </div>
+      <div>
+        <label class="label">Opsi lain yang dipertimbangkan (opsional)</label>
+        <textarea name="options_text" rows="2" class="input">{{ draft.get('consult_options','') }}</textarea>
+      </div>
+      <div>
+        <label class="label">Batas waktu keputusan (opsional)</label>
+        <input type="datetime-local" name="deadline" class="input">
+      </div>
+    </div>
+
+    <div class="flex justify-between pt-2">
+      <a href="{{ url_for('problems.wizard_step', step=2) }}" class="btn-soft flex items-center gap-2">{{ ico.icon('arrow-left', 'w-4 h-4') }} Kembali</a>
+      <button type="submit" class="btn-primary flex items-center gap-2">{{ ico.icon('check', 'w-4 h-4') }} Buat Problem Card</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

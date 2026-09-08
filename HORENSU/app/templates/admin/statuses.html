@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Statuses{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+  {{ ico.icon('settings', 'w-5 h-5 text-slate-400') }} Administration
+</h1>
+{% include "admin/_nav.html" %}
+<div class="card divide-y divide-slate-50 stagger fade-up">
+  {% for s in statuses %}
+    <form method="post" action="{{ url_for('admin.edit_status', st_id=s.id) }}" class="flex items-center gap-3 p-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <span class="pill" style="background: {{ s.color }}22; color: {{ s.color }}">{{ s.code }}</span>
+      <input type="text" name="label" value="{{ s.label }}" class="input flex-1">
+      <input type="color" name="color" value="{{ s.color }}" class="w-10 h-10 rounded-lg border-0">
+      <button class="btn-soft text-xs flex items-center gap-1.5">{{ ico.icon('check', 'w-3.5 h-3.5') }} Simpan</button>
+    </form>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,753 @@
+{% extends "base.html" %}
+{% import "partials/macros.html" as m %}
+{% import "partials/icons.html" as ico %}
+{# `with context` so the macro can read ROLE_RANK / tz_label from the app's
+   context processor rather than taking them as extra arguments. #}
+{% import "partials/progress_map.html" as pm with context %}
+{% block title %}#{{ problem.code }}{% endblock %}
+{% block content %}
+<div x-data="{ tab: 'overview' }">
+
+  {{ pm.progress_map(problem, rec.ladder) }}
+
+  <div class="card p-6 mb-6 fade-up" style="animation-delay:.03s">
+    <div class="flex flex-wrap items-start justify-between gap-4 mb-3">
+      <div>
+        <div class="text-xs font-mono text-slate-400 mb-1">#{{ problem.code }}</div>
+        <h1 class="text-xl font-extrabold text-slate-800">{{ problem.title }}</h1>
+        <div class="text-sm text-slate-400 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span class="inline-flex items-center gap-1.5">{{ ico.icon('building', 'w-3.5 h-3.5') }}{{ problem.department.name if problem.department else '-' }}</span>
+          <span class="text-slate-300">&middot;</span>
+          <span class="inline-flex items-center gap-1.5">{{ ico.icon('tag', 'w-3.5 h-3.5') }}{{ problem.category.name if problem.category else '-' }}</span>
+          <span class="text-slate-300">&middot;</span>
+          <span class="inline-flex items-center gap-1.5">{{ ico.icon('calendar', 'w-3.5 h-3.5') }}{{ problem.date_discovered | dt }}</span>
+        </div>
+      </div>
+      <div class="flex flex-col items-end gap-2">
+        {{ m.priority_pill(problem.priority) }}
+        {{ m.status_pill(problem.status) }}
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-4 text-sm mb-4">
+      <span class="inline-flex items-center gap-1.5 text-slate-500">
+        {{ ico.icon('user', 'w-4 h-4 text-slate-400') }} Reporter:
+        <strong class="text-slate-700">{{ problem.reporter.full_name if problem.reporter else '-' }}</strong>
+      </span>
+      <span class="inline-flex items-center gap-1.5 text-slate-500">
+        {{ ico.icon('wrench', 'w-4 h-4 text-slate-400') }} PIC:
+        <strong class="text-slate-700">{{ problem.pic.full_name if problem.pic else 'Belum ditugaskan' }}</strong>
+      </span>
+      {{ m.aging_badge(problem) }}
+    </div>
+
+    <div class="mb-2">
+      <div class="text-xs text-slate-400 mb-1">HORENSO Progress</div>
+      {{ m.horensu_track(problem) }}
+    </div>
+
+    {% if can_manage %}
+    <div class="flex flex-wrap gap-3 mt-4 pt-4 border-t border-slate-100">
+      <form method="post" action="{{ url_for('problems.assign', problem_id=problem.id) }}" class="flex items-center gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% set rec_ids = [] %}
+        <select name="pic_id" class="input !py-1.5 !text-xs !w-auto">
+          <option value="">Tugaskan PIC...</option>
+          {% for tier in rec.ladder %}
+            {% if tier.members %}
+              <optgroup label="{{ tier.label }}{% if tier.role in ['senior','supervisor'] and problem.department %} &mdash; {{ problem.department.name }}{% endif %}">
+                {% for u in tier.members %}
+                  {% set _ = rec_ids.append(u.id) %}
+                  <option value="{{ u.id }}" {{ 'selected' if problem.pic_id == u.id }}>{{ u.full_name }}</option>
+                {% endfor %}
+              </optgroup>
+            {% endif %}
+          {% endfor %}
+          <optgroup label="Lainnya">
+            {% for u in users %}{% if u.id not in rec_ids %}<option value="{{ u.id }}" {{ 'selected' if problem.pic_id == u.id }}>{{ u.full_name }} ({{ u.role_label }})</option>{% endif %}{% endfor %}
+          </optgroup>
+        </select>
+        <button class="btn-soft !py-1.5 !px-3 text-xs flex items-center gap-1.5">{{ ico.icon('check', 'w-3.5 h-3.5') }} Tugaskan</button>
+      </form>
+      <form method="post" action="{{ url_for('problems.change_priority', problem_id=problem.id) }}" class="flex items-center gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select name="priority_id" class="input !py-1.5 !text-xs !w-auto">
+          {% for p in priorities %}<option value="{{ p.id }}" {{ 'selected' if problem.priority_id == p.id }}>{{ p.label }}</option>{% endfor %}
+        </select>
+        <button class="btn-soft !py-1.5 !px-3 text-xs flex items-center gap-1.5">{{ ico.icon('flag', 'w-3.5 h-3.5') }} Ubah Prioritas</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ---- Read-only notice for someone who may look but not act ---- #}
+  {% if readonly_reason %}
+  <div class="card p-4 mb-6 bg-sky-50 border-sky-200 fade-up" style="animation-delay:.04s">
+    <div class="flex items-start gap-2.5 text-sm text-sky-800">
+      {{ ico.icon('eye', 'w-4 h-4 mt-0.5 shrink-0') }}
+      <div>
+        <div class="font-semibold mb-0.5">Mode lihat saja</div>
+        <p class="text-xs">{{ readonly_reason }}</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ---- Escalation: ask the tier directly above to take action ---- #}
+  {% if esc.open or esc.can_request or esc.can_respond or problem.escalations %}
+  <div class="card p-5 mb-6 fade-up" style="animation-delay:.045s">
+    <div class="flex items-start justify-between gap-3 mb-1">
+      <h3 class="font-bold text-slate-700 flex items-center gap-2">
+        {{ ico.icon('trending', 'w-4 h-4 text-brand') }} Permintaan tindakan ke atas
+      </h3>
+      {% if esc.open %}
+        <span class="pill bg-amber-50 text-amber-600">
+          {{ ico.icon('clock', 'w-3.5 h-3.5') }} Menunggu {{ esc.open.to_role_label }}
+        </span>
+      {% endif %}
+    </div>
+    <p class="text-xs text-slate-400 mb-4">
+      Setiap tingkat hanya dapat meminta tindakan ke satu tingkat di atasnya:
+      Senior &rarr; Supervisor &rarr; Asst. Manager &rarr; Manager.
+    </p>
+
+    {# ---- History of requests on this card ---- #}
+    {% if problem.escalations %}
+      <div class="space-y-2 mb-4 stagger">
+        {% for e in problem.escalations %}
+          <div class="rounded-xl border px-3 py-2.5
+                      {% if e.status == 'OPEN' %} border-amber-200 bg-amber-50/50
+                      {% elif e.status == 'ACCEPTED' %} border-emerald-200 bg-emerald-50/40
+                      {% else %} border-slate-100 bg-slate-50 {% endif %}">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+              <span class="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                {{ e.from_role_label }}
+                {{ ico.icon('arrow-right', 'w-3.5 h-3.5 text-slate-400') }}
+                {{ e.to_role_label }}
+              </span>
+              <span class="pill
+                           {% if e.status == 'OPEN' %} bg-amber-100 text-amber-700
+                           {% elif e.status == 'ACCEPTED' %} bg-emerald-100 text-emerald-700
+                           {% else %} bg-slate-200 text-slate-600 {% endif %}">
+                {{ e.status_label }}
+              </span>
+            </div>
+            <p class="text-sm text-slate-700">{{ e.reason }}</p>
+            {% if e.needed_action %}
+              <p class="text-xs text-slate-500 mt-1">Tindakan diminta: {{ e.needed_action }}</p>
+            {% endif %}
+            <div class="text-[11px] text-slate-400 mt-1">
+              Diminta oleh {{ e.from_user.full_name if e.from_user else '-' }} &middot; {{ e.requested_at | timeago }}
+              {% if e.responded_at %}
+                &middot; ditanggapi {{ e.responded_by.full_name if e.responded_by else '-' }}
+                ({{ e.responded_at | timeago }})
+              {% endif %}
+            </div>
+            {% if e.response_note %}
+              <p class="text-xs text-slate-600 mt-1.5 pl-3 border-l-2 border-slate-200">{{ e.response_note }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# ---- Respond to a request addressed to me ---- #}
+    {% if esc.can_respond and esc.open %}
+      <form method="post" action="{{ url_for('problems.respond_escalation', problem_id=problem.id, escalation_id=esc.open.id) }}"
+            x-data="{ decision: '' }" class="border-t border-slate-100 pt-4 space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="text-xs font-semibold text-slate-500">
+          Permintaan ini ditujukan kepada Anda sebagai {{ esc.open.to_role_label }}.
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="border rounded-xl p-3 text-center cursor-pointer transition text-sm"
+                 :class="decision === 'accept' ? 'border-brand bg-brand/5' : 'border-slate-100 hover:border-brand/40'">
+            <input type="radio" name="decision" value="accept" x-model="decision" class="hidden">
+            <div class="grid place-items-center mb-1 text-brand">{{ ico.icon('check-circle', 'w-5 h-5') }}</div>
+            <div class="font-semibold text-slate-700">Ambil alih</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Saya yang menangani mulai sekarang</div>
+          </label>
+          <label class="border rounded-xl p-3 text-center cursor-pointer transition text-sm"
+                 :class="decision === 'decline' ? 'border-brand bg-brand/5' : 'border-slate-100 hover:border-brand/40'">
+            <input type="radio" name="decision" value="decline" x-model="decision" class="hidden">
+            <div class="grid place-items-center mb-1 text-slate-400">{{ ico.icon('arrow-left', 'w-5 h-5') }}</div>
+            <div class="font-semibold text-slate-700">Kembalikan</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Dikembalikan dengan arahan</div>
+          </label>
+        </div>
+        <textarea name="response_note" rows="2" class="input !text-sm"
+                  :placeholder="decision === 'decline' ? 'Alasan &amp; arahan (wajib)' : 'Catatan (opsional)'"></textarea>
+        <button type="submit" class="btn-primary !py-2 !px-4 text-sm flex items-center gap-2 transition"
+                :disabled="!decision" :class="!decision ? 'opacity-40 cursor-not-allowed' : ''">
+          {{ ico.icon('send', 'w-4 h-4') }} Kirim tanggapan
+        </button>
+      </form>
+
+    {# ---- Raise a new request to the tier above ---- #}
+    {% elif esc.can_request %}
+      <div x-data="{ open: false }" class="border-t border-slate-100 pt-4">
+        <button type="button" @click="open = !open" class="text-brand font-medium text-sm flex items-center gap-1.5">
+          <span class="transition-transform duration-300" :class="open ? 'rotate-45' : ''">{{ ico.icon('plus', 'w-4 h-4') }}</span>
+          Minta tindakan ke {{ esc.next_role_label }}
+        </button>
+        <p class="text-xs text-slate-400 mt-1.5">
+          Akan diteruskan ke: {{ esc.recipients | map(attribute='full_name') | join(', ') }}
+        </p>
+        <form x-show="open" x-cloak
+              x-transition:enter="transition ease-out duration-300"
+              x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+              method="post" action="{{ url_for('problems.escalate', problem_id=problem.id) }}"
+              class="space-y-3 mt-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div>
+            <label class="label">Mengapa perlu naik ke {{ esc.next_role_label }}?</label>
+            <textarea name="reason" rows="2" required class="input !text-sm"
+                      placeholder="Contoh: butuh persetujuan biaya perbaikan di luar wewenang saya"></textarea>
+          </div>
+          <div>
+            <label class="label">Tindakan yang diminta (opsional)</label>
+            <textarea name="needed_action" rows="2" class="input !text-sm"
+                      placeholder="Contoh: persetujuan pembelian sparepart HPLC"></textarea>
+          </div>
+          <button type="submit" class="btn-primary !py-2 !px-4 text-sm flex items-center gap-2">
+            {{ ico.icon('trending', 'w-4 h-4') }} Kirim ke {{ esc.next_role_label }}
+          </button>
+        </form>
+      </div>
+
+    {% elif esc.no_recipient_reason %}
+      <p class="text-xs text-slate-400 border-t border-slate-100 pt-3">{{ esc.no_recipient_reason }}</p>
+    {% elif esc.at_top and not problem.resolved_at %}
+      <p class="text-xs text-slate-400 border-t border-slate-100 pt-3">
+        Anda berada pada tingkat tertinggi — tidak ada tingkat di atasnya untuk dimintai tindakan.
+      </p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ---- "Mengetahui": tiers above the one that settled this card ---- #}
+  {% if problem.resolved_at and required_ack %}
+  <div class="card p-5 mb-6 fade-up" style="animation-delay:.05s">
+    <div class="flex items-start justify-between gap-3 mb-1">
+      <h3 class="font-bold text-slate-700 flex items-center gap-2">
+        {{ ico.icon('shield', 'w-4 h-4 text-brand') }} Konfirmasi mengetahui
+      </h3>
+      {% if problem.acknowledgement_complete %}
+        <span class="pill bg-emerald-50 text-emerald-600">{{ ico.icon('check-circle', 'w-3.5 h-3.5') }} Lengkap</span>
+      {% else %}
+        <span class="pill bg-amber-50 text-amber-600">{{ problem.pending_acknowledgers|length }} menunggu</span>
+      {% endif %}
+    </div>
+    <p class="text-xs text-slate-400 mb-4">
+      Diselesaikan pada tingkat <strong class="text-slate-600">{{ problem.resolved_by_role_label }}</strong>
+      oleh {{ problem.resolved_by.full_name if problem.resolved_by else '-' }}.
+      Tingkat di atasnya cukup memberi konfirmasi mengetahui &mdash; tidak perlu mengerjakan ulang.
+    </p>
+
+    <div class="space-y-2 stagger mb-4">
+      {% for u in required_ack %}
+        {% set done = u.id in acked_ids %}
+        <div class="flex items-center gap-3 rounded-xl px-3 py-2.5 border transition
+                    {{ 'border-emerald-200 bg-emerald-50/40' if done else 'border-slate-100' }}">
+          <span class="shrink-0 {{ 'text-emerald-500' if done else 'text-slate-300' }}">
+            {{ ico.icon('check-circle' if done else 'circle-dot', 'w-4 h-4') }}
+          </span>
+          <div class="w-8 h-8 rounded-full grid place-items-center text-white text-[11px] font-bold shrink-0" style="background: {{ u.avatar_color }}">{{ u.initials }}</div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-medium text-slate-700 truncate">{{ u.full_name }}</div>
+            <div class="text-xs text-slate-400 truncate">{{ u.role_label }}{% if u.department %} &middot; {{ u.department.name }}{% endif %}</div>
+          </div>
+          {% if done %}
+            {% for a in problem.acknowledgements %}
+              {% if a.user_id == u.id %}
+                <span class="text-xs text-emerald-600 shrink-0">{{ a.acknowledged_at | timeago }}</span>
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <span class="pill bg-slate-100 text-slate-400 shrink-0">Menunggu</span>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if needs_ack %}
+      <form method="post" action="{{ url_for('problems.acknowledge', problem_id=problem.id) }}"
+            x-data="{ agreed: false }" class="border-t border-slate-100 pt-4 space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="flex items-start gap-3 cursor-pointer rounded-xl border px-3 py-3 transition
+                      hover:border-brand/40"
+               :class="agreed ? 'border-brand bg-brand/5' : 'border-slate-100'">
+          <input type="checkbox" name="confirm" value="1" x-model="agreed" class="mt-0.5 shrink-0">
+          <span class="text-sm text-slate-700">
+            Mengetahui dan telah diselesaikan oleh
+            {{ problem.resolved_by.full_name if problem.resolved_by else 'PIC' }} terkait.
+          </span>
+        </label>
+        <input type="text" name="note" class="input !py-2 text-sm" placeholder="Catatan (opsional)">
+        <button type="submit" class="btn-primary !py-2 !px-4 text-sm flex items-center gap-2"
+                :disabled="!agreed" :class="!agreed ? 'opacity-40 cursor-not-allowed' : ''">
+          {{ ico.icon('check', 'w-4 h-4') }} Simpan konfirmasi
+        </button>
+      </form>
+    {% elif current_user.id in acked_ids %}
+      <p class="text-xs text-emerald-600 border-t border-slate-100 pt-3 flex items-center gap-1.5">
+        {{ ico.icon('check-circle', 'w-3.5 h-3.5') }} Anda sudah memberi konfirmasi pada laporan ini.
+      </p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ---- Escalation ladder for this department ---- #}
+  {% if rec.responders or rec.ladder %}
+  <div class="card p-5 mb-6 fade-up" style="animation-delay:.06s">
+    <div class="flex items-start justify-between gap-3 mb-1">
+      <h3 class="font-bold text-slate-700 flex items-center gap-2">
+        {{ ico.icon('target', 'w-4 h-4 text-brand') }} Alur pengarahan
+      </h3>
+      <span class="pill bg-brand/10 text-brand">{{ problem.department.name if problem.department else 'Tanpa departemen' }}</span>
+    </div>
+    <p class="text-xs text-slate-400 mb-4">
+      {% if rec.is_escalated %}
+        Departemen ini belum memiliki {{ 'Senior' }} aktif &mdash; laporan naik ke tingkat
+        <strong class="text-slate-600">{{ rec.responder_label }}</strong>.
+      {% else %}
+        Laporan dari user masuk ke <strong class="text-slate-600">Senior</strong> terlebih dahulu,
+        lalu naik ke Supervisor, Asst. Manager, dan Manager bila diperlukan.
+      {% endif %}
+    </p>
+
+    {# Ladder overview: Senior -> Supervisor -> Asst. Manager -> Manager #}
+    <div class="flex flex-wrap items-center gap-1.5 mb-4 text-xs">
+      {% for tier in rec.ladder %}
+        <span class="pill {{ 'bg-brand/10 text-brand' if tier.role == rec.responder_role else ('bg-slate-100 text-slate-500' if tier.members else 'bg-slate-50 text-slate-300') }}">
+          {{ tier.label }}
+          <span class="opacity-70">({{ tier.members|length }})</span>
+        </span>
+        {% if not loop.last %}<span class="text-slate-300">{{ ico.icon('chevron-right', 'w-3 h-3') }}</span>{% endif %}
+      {% endfor %}
+    </div>
+
+    {% if rec.responders %}
+    <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+      {{ ico.icon('send', 'w-3.5 h-3.5') }} Tingkat pertama yang menerima laporan &mdash; {{ rec.responder_label }}
+    </div>
+    <form method="post" action="{{ url_for('problems.inform', problem_id=problem.id) }}"
+          x-data="{ picked: [] }" class="space-y-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="grid sm:grid-cols-2 gap-2 stagger">
+        {% for u in rec.responders %}
+          {% set informed = u.id in rec.informed_ids %}
+          {# The assign button sits beside the label, not inside it, so pressing
+             it never toggles the Renraku checkbox. #}
+          <div class="flex items-center gap-2 border border-slate-100 rounded-xl pr-2 transition
+                      {{ 'opacity-70' if informed else 'hover:border-brand/40' }}"
+               :class="picked.includes({{ u.id }}) ? 'border-brand bg-brand/5' : ''">
+            <label class="flex items-center gap-3 px-3 py-2.5 min-w-0 flex-1 {{ '' if informed else 'cursor-pointer' }}">
+              {% if informed %}
+                <span class="text-emerald-500 shrink-0" title="Sudah diinformasikan">{{ ico.icon('check-circle', 'w-4 h-4') }}</span>
+              {% else %}
+                <input type="checkbox" name="recipients" value="{{ u.id }}" x-model.number="picked" class="shrink-0">
+              {% endif %}
+              <div class="w-8 h-8 rounded-full grid place-items-center text-white text-[11px] font-bold shrink-0" style="background: {{ u.avatar_color }}">{{ u.initials }}</div>
+              <div class="min-w-0">
+                <div class="text-sm font-medium text-slate-700 truncate">{{ u.full_name }}</div>
+                <div class="text-xs text-slate-400 truncate">
+                  {{ u.role_label }}{% if u.department %} &middot; {{ u.department.name }}{% endif %}
+                  {% if informed %}&middot; sudah diinformasikan{% endif %}
+                </div>
+              </div>
+            </label>
+            {% if can_manage %}
+              <button type="submit" form="assign-{{ u.id }}"
+                      class="pill shrink-0 transition {{ 'ring-1 ring-brand text-brand bg-brand/10' if problem.pic_id == u.id else 'bg-slate-100 text-slate-600 hover:bg-brand/10 hover:text-brand' }}"
+                      title="Tugaskan {{ u.full_name }} sebagai PIC">
+                {{ ico.icon('wrench', 'w-3.5 h-3.5') }} PIC
+              </button>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="flex items-center justify-between gap-3 pt-1">
+        <p class="text-xs text-slate-400" x-show="picked.length" x-cloak>
+          <span x-text="picked.length"></span> orang dipilih
+        </p>
+        <div class="flex-1"></div>
+        <button type="submit" class="btn-primary !py-2 !px-4 text-xs flex items-center gap-1.5 transition"
+                :disabled="!picked.length" :class="!picked.length ? 'opacity-40 cursor-not-allowed' : ''">
+          {{ ico.icon('send', 'w-3.5 h-3.5') }} Informasikan (Renraku)
+        </button>
+      </div>
+    </form>
+
+    {# Standalone assign forms, referenced by the per-person PIC buttons above. #}
+    {% if can_manage %}
+      {% for u in rec.responders %}
+        <form id="assign-{{ u.id }}" method="post" action="{{ url_for('problems.assign', problem_id=problem.id) }}" class="hidden">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="pic_id" value="{{ u.id }}">
+        </form>
+      {% endfor %}
+    {% endif %}
+    {% endif %}
+
+    {% if rec.seniors and rec.responder_role != 'senior' %}
+    <div class="mt-4 pt-4 border-t border-slate-100">
+      <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+        {{ ico.icon('wrench', 'w-3.5 h-3.5') }} Senior di departemen yang sama
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% for u in rec.seniors %}
+          {% if can_manage %}
+            <form method="post" action="{{ url_for('problems.assign', problem_id=problem.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="pic_id" value="{{ u.id }}">
+              <button class="pill bg-slate-100 text-slate-600 hover:bg-brand/10 hover:text-brand transition {{ 'ring-1 ring-brand text-brand' if problem.pic_id == u.id }}">
+                {{ ico.icon('user', 'w-3.5 h-3.5') }} {{ u.full_name }}
+                {% if problem.pic_id == u.id %}&middot; PIC saat ini{% endif %}
+              </button>
+            </form>
+          {% else %}
+            <span class="pill bg-slate-100 text-slate-600">{{ ico.icon('user', 'w-3.5 h-3.5') }} {{ u.full_name }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if similar %}
+  <div class="card p-4 mb-6 bg-amber-50/50 border-amber-100 fade-up" style="animation-delay:.1s">
+    <div class="text-sm font-semibold text-amber-700 mb-1 flex items-center gap-2">
+      {{ ico.icon('alert', 'w-4 h-4') }} Masalah serupa terdeteksi
+    </div>
+    <p class="text-xs text-amber-600 mb-2">{{ similar|length }} masalah serupa dilaporkan dalam 30 hari terakhir pada departemen &amp; kategori yang sama.</p>
+    <div class="flex flex-wrap gap-2">
+      {% for s in similar %}
+        <a href="{{ url_for('problems.detail', problem_id=s.id) }}" class="pill bg-white border border-amber-200 text-amber-700 hover:-translate-y-0.5 transition">#{{ s.code }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="flex gap-1 mb-6 overflow-x-auto text-sm font-semibold fade-up" style="animation-delay:.14s">
+    {% for key, label, name in [('overview','Overview','file'), ('horensu','HORENSO','layers'), ('actions','Actions','wrench'), ('timeline','Timeline','clock'), ('files','Lampiran','paperclip')] %}
+      <button @click="tab='{{ key }}'" :class="tab==='{{ key }}' ? 'bg-brand text-white shadow-md shadow-brand/20' : 'bg-white text-slate-500'"
+              class="tab-btn px-4 py-2 rounded-xl whitespace-nowrap flex items-center gap-2">
+        {{ ico.icon(name, 'w-4 h-4') }} {{ label }}
+      </button>
+    {% endfor %}
+  </div>
+
+  <div x-show="tab==='overview'" x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 translate-y-3" x-transition:enter-end="opacity-100 translate-y-0">
+    <div class="card p-6 mb-6 space-y-4">
+      <div>
+        <div class="label">What do we know so far?</div>
+        <p class="text-sm text-slate-600">{{ problem.description or '-' }}</p>
+      </div>
+      <div>
+        <div class="label">Dampak</div>
+        <p class="text-sm text-slate-600">{{ problem.impact or '-' }}</p>
+      </div>
+      <div>
+        <div class="label">Area / Proses</div>
+        <p class="text-sm text-slate-600">{{ problem.area_process or '-' }}</p>
+      </div>
+    </div>
+
+    {% if problem.resolved_at %}
+    <div class="card p-6 mb-6 border-emerald-100 bg-emerald-50/40">
+      <h3 class="font-bold text-emerald-700 mb-2 flex items-center gap-2">{{ ico.icon('check-circle', 'w-4 h-4') }} Resolution</h3>
+      <p class="text-sm text-emerald-800 mb-1">{{ problem.resolution_description }}</p>
+      <p class="text-xs text-emerald-600">Diselesaikan oleh {{ problem.resolved_by.full_name if problem.resolved_by else '-' }} pada {{ problem.resolved_at | dt }}</p>
+    </div>
+    {% endif %}
+
+    {% if problem.closed_at %}
+    <div class="card p-6 mb-6 border-slate-200 bg-slate-50">
+      <h3 class="font-bold text-slate-600 mb-2 flex items-center gap-2">{{ ico.icon('lock', 'w-4 h-4') }} Closure</h3>
+      <p class="text-sm text-slate-600 mb-1">{{ problem.closing_comment or '-' }}</p>
+      <p class="text-xs text-slate-400">Ditutup oleh {{ problem.closed_by.full_name if problem.closed_by else '-' }} pada {{ problem.closed_at | dt }}</p>
+    </div>
+    {% endif %}
+
+    {% if not problem.resolved_at %}
+    <div class="card p-6 mb-6">
+      <h3 class="font-bold text-slate-700 mb-3">Tandai sebagai Resolved</h3>
+      <form method="post" action="{{ url_for('problems.resolve', problem_id=problem.id) }}" enctype="multipart/form-data" class="space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="resolution_description" rows="2" required class="input" placeholder="Jelaskan solusi yang telah dilakukan..."></textarea>
+        <input type="text" name="resolution_evidence_note" class="input" placeholder="Catatan bukti (opsional)">
+        <input type="file" name="attachment" class="input">
+        <button class="btn-primary flex items-center gap-2">{{ ico.icon('check-circle', 'w-4 h-4') }} Mark as Resolved</button>
+      </form>
+    </div>
+    {% elif not problem.closed_at %}
+    <div class="card p-6 mb-6">
+      <h3 class="font-bold text-slate-700 mb-3">Verifikasi &amp; Tutup</h3>
+      <form method="post" action="{{ url_for('problems.close', problem_id=problem.id) }}" class="space-y-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="closing_comment" rows="2" class="input" placeholder="Komentar penutupan (opsional)"></textarea>
+        <button class="btn-primary flex items-center gap-2">{{ ico.icon('lock', 'w-4 h-4') }} Verifikasi &amp; Mark as Closed</button>
+      </form>
+    </div>
+    {% elif can_manage %}
+    <div class="card p-6 mb-6">
+      <form method="post" action="{{ url_for('problems.reopen', problem_id=problem.id) }}" class="flex items-center gap-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="reason" class="input" placeholder="Alasan membuka kembali (opsional)">
+        <button class="btn-soft whitespace-nowrap flex items-center gap-2">{{ ico.icon('refresh', 'w-4 h-4') }} Buka Kembali</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <div class="card p-6">
+      <h3 class="font-bold text-slate-700 mb-3">What do we know so far? — Root Cause Analysis</h3>
+      {% for rca in problem.root_causes %}
+        <div class="grid md:grid-cols-2 gap-3 text-sm mb-4 p-3 bg-slate-50 rounded-xl">
+          <div><span class="label">Immediate Cause</span>{{ rca.immediate_cause or '-' }}</div>
+          <div><span class="label">Root Cause</span>{{ rca.root_cause or '-' }}</div>
+          <div><span class="label">Corrective Action</span>{{ rca.corrective_action or '-' }}</div>
+          <div><span class="label">Preventive Action</span>{{ rca.preventive_action or '-' }}</div>
+        </div>
+      {% endfor %}
+      <div x-data="{ open:false }" class="text-sm">
+        <button type="button" @click="open=!open" class="text-brand font-medium flex items-center gap-1.5">
+          <span class="transition-transform duration-300" :class="open ? 'rotate-45' : ''">{{ ico.icon('plus', 'w-4 h-4') }}</span>
+          Add Root Cause Analysis
+        </button>
+        <form x-show="open" x-cloak
+              x-transition:enter="transition ease-out duration-300"
+              x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+              method="post" action="{{ url_for('problems.add_root_cause', problem_id=problem.id) }}" class="grid md:grid-cols-2 gap-3 mt-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <textarea name="immediate_cause" class="input" placeholder="Immediate Cause" rows="2"></textarea>
+          <textarea name="root_cause" class="input" placeholder="Root Cause" rows="2"></textarea>
+          <textarea name="corrective_action" class="input" placeholder="Corrective Action" rows="2"></textarea>
+          <textarea name="preventive_action" class="input" placeholder="Preventive Action" rows="2"></textarea>
+          <button class="btn-primary md:col-span-2">Simpan RCA</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="tab==='horensu'" x-cloak class="space-y-6"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 translate-y-3" x-transition:enter-end="opacity-100 translate-y-0">
+    <div class="card p-6">
+      <h3 class="font-bold text-slate-700 mb-3 flex items-center gap-2">{{ ico.icon('send', 'w-4 h-4 text-brand') }} Renraku — Yang Diinformasikan</h3>
+      <div class="space-y-2 mb-2 stagger">
+        {% for c in problem.communications %}
+          <div class="flex items-center justify-between text-sm p-2.5 bg-slate-50 rounded-xl">
+            <span class="flex items-center gap-2 text-slate-700">
+              {{ ico.icon('user', 'w-4 h-4 text-slate-400') }}
+              {{ c.recipient_user.full_name if c.recipient_user else c.recipient_label }}
+              {% if c.recipient_user and c.recipient_user.role != 'user' %}
+                <span class="pill bg-brand/10 text-brand">{{ c.recipient_user.role_label }}</span>
+              {% endif %}
+            </span>
+            <span class="text-xs text-slate-400">{{ c.notified_at | timeago }} &middot; {{ c.status }}</span>
+          </div>
+        {% else %}
+          <p class="text-sm text-slate-400">Belum ada pihak yang diinformasikan.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card p-6">
+      <h3 class="font-bold text-slate-700 mb-3 flex items-center gap-2">{{ ico.icon('message', 'w-4 h-4 text-brand') }} Sodan — Konsultasi &amp; Keputusan</h3>
+      {% for c in problem.consultations %}
+        <div class="p-4 bg-slate-50 rounded-xl mb-3">
+          <div class="text-sm font-semibold text-slate-700 mb-1">{{ c.question }}</div>
+          <div class="text-xs text-slate-400 mb-2">Diminta oleh {{ c.requested_by.full_name if c.requested_by else '-' }} &middot; {{ c.requested_at | timeago }}</div>
+          {% if c.decision_needed %}<p class="text-xs text-slate-500 mb-2">Keputusan dibutuhkan: {{ c.decision_needed }}</p>{% endif %}
+          {% for d in c.decisions %}
+            <div class="p-3 bg-white rounded-lg border border-slate-100 text-sm">
+              <span class="pill bg-sky-50 text-sky-600 mb-1">{{ ico.icon('check', 'w-3.5 h-3.5') }} Keputusan</span>
+              <p class="text-slate-700 mt-1">{{ d.decision_text }}</p>
+              <p class="text-xs text-slate-400 mt-1">oleh {{ d.decided_by.full_name if d.decided_by else '-' }} &middot; {{ d.decided_at | dt }}</p>
+            </div>
+          {% endfor %}
+          {% if c.status == 'OPEN' and can_manage %}
+            <form method="post" action="{{ url_for('problems.decide', problem_id=problem.id, consultation_id=c.id) }}" class="mt-3 flex gap-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="text" name="decision_text" required class="input" placeholder="Tuliskan keputusan Anda...">
+              <button class="btn-primary whitespace-nowrap">Beri Keputusan</button>
+            </form>
+          {% endif %}
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-400 mb-3">Belum ada konsultasi.</p>
+      {% endfor %}
+
+      {% if not problem.consultations or problem.consultations[-1].status == 'DECIDED' %}
+        <div x-data="{ open:false }" class="text-sm">
+          <button type="button" @click="open=!open" class="text-brand font-medium flex items-center gap-1.5">
+            <span class="transition-transform duration-300" :class="open ? 'rotate-45' : ''">{{ ico.icon('plus', 'w-4 h-4') }}</span>
+            Minta konsultasi baru
+          </button>
+          {% if rec.supervisors %}
+            <p x-show="open" x-cloak class="text-xs text-slate-400 mt-2">
+              Akan diteruskan ke: {{ rec.supervisors | map(attribute='full_name') | join(', ') }}
+            </p>
+          {% endif %}
+          <form x-show="open" x-cloak
+                x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                method="post" action="{{ url_for('problems.request_consultation', problem_id=problem.id) }}" class="space-y-3 mt-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <textarea name="question" required rows="2" class="input" placeholder="Apa yang perlu didiskusikan?"></textarea>
+            <textarea name="decision_needed" rows="2" class="input" placeholder="Keputusan apa yang dibutuhkan?"></textarea>
+            <textarea name="suggested_solution" rows="2" class="input" placeholder="Usulan solusi (opsional)"></textarea>
+            <button class="btn-primary">Kirim Permintaan</button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div x-show="tab==='actions'" x-cloak class="card p-6"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 translate-y-3" x-transition:enter-end="opacity-100 translate-y-0">
+    <h3 class="font-bold text-slate-700 mb-3 flex items-center gap-2">{{ ico.icon('wrench', 'w-4 h-4 text-brand') }} Actions</h3>
+    <div class="space-y-3 mb-4 stagger">
+      {% for a in problem.actions %}
+        <div class="p-4 bg-slate-50 rounded-xl">
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <div class="text-sm font-semibold text-slate-700">ACTION #{{ loop.index }} &middot; {{ a.description }}</div>
+            <span class="pill {{ 'bg-emerald-50 text-emerald-600' if a.status=='COMPLETED' else ('bg-sky-50 text-sky-600' if a.status=='IN_PROGRESS' else 'bg-slate-200 text-slate-500') }}">{{ a.status.replace('_',' ').title() }}</span>
+          </div>
+          <div class="text-xs text-slate-400 mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span class="inline-flex items-center gap-1.5">{{ ico.icon('user', 'w-3.5 h-3.5') }} {{ a.pic.full_name if a.pic else '-' }}</span>
+            <span class="inline-flex items-center gap-1.5">{{ ico.icon('calendar', 'w-3.5 h-3.5') }} {{ a.due_date | dt('%d %b %Y') if a.due_date else '-' }}</span>
+          </div>
+          {% if a.notes %}<p class="text-xs text-slate-500 mb-2">Catatan: {{ a.notes }}</p>{% endif %}
+          {% if a.status != 'COMPLETED' %}
+            <form method="post" action="{{ url_for('problems.update_action_status', problem_id=problem.id, action_id=a.id) }}" class="flex flex-wrap gap-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <select name="status" class="input !py-1.5 !text-xs !w-auto">
+                <option value="TODO" {{ 'selected' if a.status=='TODO' }}>To Do</option>
+                <option value="IN_PROGRESS" {{ 'selected' if a.status=='IN_PROGRESS' }}>In Progress</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+              <input type="text" name="notes" class="input !py-1.5 !text-xs flex-1" placeholder="Catatan update (opsional)">
+              <button class="btn-soft !py-1.5 !px-3 text-xs">Update</button>
+            </form>
+          {% endif %}
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-400">Belum ada action.</p>
+      {% endfor %}
+    </div>
+    <div x-data="{ open:false }" class="text-sm">
+      <button type="button" @click="open=!open" class="text-brand font-medium flex items-center gap-1.5">
+        <span class="transition-transform duration-300" :class="open ? 'rotate-45' : ''">{{ ico.icon('plus', 'w-4 h-4') }}</span>
+        Tambah Action
+      </button>
+      <form x-show="open" x-cloak
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            method="post" action="{{ url_for('problems.add_action', problem_id=problem.id) }}" class="grid md:grid-cols-2 gap-3 mt-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="description" required rows="2" class="input md:col-span-2" placeholder="Deskripsi tindakan"></textarea>
+        <select name="pic_id" class="input">
+          <option value="">PIC (opsional)</option>
+          {% if rec.pics %}
+            <optgroup label="Rekomendasi &mdash; {{ problem.department.name if problem.department else 'departemen ini' }}">
+              {% for u in rec.pics %}<option value="{{ u.id }}">{{ u.full_name }}</option>{% endfor %}
+            </optgroup>
+          {% endif %}
+          {% set pic_ids = rec.pics | map(attribute='id') | list %}
+          <optgroup label="Lainnya">
+            {% for u in users %}{% if u.id not in pic_ids %}<option value="{{ u.id }}">{{ u.full_name }}</option>{% endif %}{% endfor %}
+          </optgroup>
+        </select>
+        <input type="date" name="due_date" class="input">
+        <button class="btn-primary md:col-span-2">Simpan Action</button>
+      </form>
+    </div>
+  </div>
+
+  <div x-show="tab==='timeline'" x-cloak class="card p-6"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 translate-y-3" x-transition:enter-end="opacity-100 translate-y-0">
+    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">{{ ico.icon('clock', 'w-4 h-4 text-brand') }} Timeline</h3>
+    <div class="space-y-4 mb-6 stagger">
+      {% for item in timeline %}
+        <div class="flex gap-3 text-sm">
+          <div class="w-16 shrink-0 text-xs text-slate-400 pt-0.5">{{ item.time | dt('%H:%M') }}</div>
+          <div class="w-2 h-2 mt-1.5 rounded-full bg-brand shrink-0"></div>
+          <div>
+            {% if item.kind == 'activity' %}
+              <span class="font-semibold text-slate-700">{{ item.obj.user.full_name if item.obj.user else 'Sistem' }}</span>
+              <span class="text-slate-500">{{ item.obj.action|lower }}</span>
+              {% if item.obj.detail %}<span class="text-slate-400">— {{ item.obj.detail }}</span>{% endif %}
+            {% else %}
+              <span class="font-semibold text-slate-700">{{ item.obj.user.full_name if item.obj.user else '-' }}</span>
+              <span class="text-slate-500">berkomentar:</span>
+              <p class="text-slate-600 mt-0.5">{{ item.obj.body }}</p>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-400">Belum ada riwayat.</p>
+      {% endfor %}
+    </div>
+    <form method="post" action="{{ url_for('problems.add_comment', problem_id=problem.id) }}" class="flex gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="body" required class="input" placeholder="Tulis update atau follow-up...">
+      <button class="btn-primary whitespace-nowrap flex items-center gap-2">{{ ico.icon('send', 'w-4 h-4') }} Kirim</button>
+    </form>
+  </div>
+
+  <div x-show="tab==='files'" x-cloak class="card p-6"
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 translate-y-3" x-transition:enter-end="opacity-100 translate-y-0">
+    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">{{ ico.icon('paperclip', 'w-4 h-4 text-brand') }} Lampiran</h3>
+    <form method="post" action="{{ url_for('problems.upload_attachment', problem_id=problem.id) }}" enctype="multipart/form-data" class="flex gap-2 mb-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="file" name="attachment" required class="input">
+      <button class="btn-primary whitespace-nowrap flex items-center gap-2">{{ ico.icon('upload', 'w-4 h-4') }} Upload</button>
+    </form>
+    <p class="text-xs text-slate-400">File yang diunggah tersimpan bersama Problem Card ini untuk audit.</p>
+  </div>
+
+
+  {% if can_delete %}
+  <div class="card p-5 mt-8 border-rose-200 bg-rose-50/40 fade-up" x-data="{ open:false, typed:'' }">
+    <button type="button" @click="open = !open" class="w-full flex items-center justify-between gap-3 text-left">
+      <span class="font-bold text-rose-600 flex items-center gap-2">
+        {{ ico.icon('alert', 'w-4 h-4') }} Hapus laporan
+      </span>
+      <span class="text-rose-400 transition-transform duration-300" :class="open ? 'rotate-180' : ''">
+        {{ ico.icon('chevron-down', 'w-4 h-4') }}
+      </span>
+    </button>
+    <div x-show="open" x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+         class="mt-4">
+      <p class="text-xs text-rose-600 mb-3">
+        Tindakan ini permanen. Seluruh riwayat, komentar, action, konsultasi, lampiran, dan notifikasi
+        laporan ini akan ikut terhapus dan tidak dapat dikembalikan. Hanya Admin yang dapat melakukannya.
+      </p>
+      <form method="post" action="{{ url_for('problems.delete_problem', problem_id=problem.id) }}" class="flex flex-wrap items-end gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="flex-1 min-w-[220px]">
+          <label class="label !text-rose-600">Ketik <span class="font-mono">{{ problem.code }}</span> untuk konfirmasi</label>
+          <input type="text" name="confirm_code" x-model="typed" autocomplete="off"
+                 class="input !py-2 text-sm" placeholder="{{ problem.code }}">
+        </div>
+        <button type="submit" class="btn-primary !bg-rose-600 !py-2 !px-4 text-sm flex items-center gap-2"
+                :disabled="typed !== '{{ problem.code }}'"
+                :class="typed !== '{{ problem.code }}' ? 'opacity-40 cursor-not-allowed' : ''">
+          {{ ico.icon('x', 'w-4 h-4') }} Hapus permanen
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

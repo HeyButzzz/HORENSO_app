@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "partials/macros.html" as m %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Pencarian{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 fade-up">
+  {{ ico.icon('search', 'w-5 h-5 text-slate-400') }} Hasil pencarian untuk "{{ q }}"
+</h1>
+{% if results %}
+  <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4 stagger">
+    {% for p in results %}{{ m.problem_card(p) }}{% endfor %}
+  </div>
+{% else %}
+  <div class="card p-10 text-center text-slate-400 fade-up">
+    <span class="inline-block text-slate-300 mb-3">{{ ico.icon('search', 'w-10 h-10 mx-auto') }}</span>
+    <p>Tidak ditemukan hasil untuk "{{ q }}".</p>
+  </div>
+{% endif %}
+{% endblock %}

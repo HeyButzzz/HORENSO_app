@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+  {{ ico.icon('settings', 'w-5 h-5 text-slate-400') }} Administration
+</h1>
+{% include "admin/_nav.html" %}
+
+<div class="card p-5 mb-6 fade-up">
+  <h3 class="font-bold text-slate-700 mb-1 flex items-center gap-2">
+    {{ ico.icon('layers', 'w-4 h-4 text-brand') }} Alur eskalasi laporan
+  </h3>
+  <p class="text-xs text-slate-400 mb-3">
+    Laporan dari User masuk ke Senior lebih dulu. Bila Senior dapat menyelesaikannya, laporan dianggap
+    selesai dan tingkat di atasnya cukup memberi konfirmasi mengetahui.
+  </p>
+  <div class="flex flex-wrap items-center gap-1.5 text-xs">
+    <span class="pill bg-slate-100 text-slate-500">{{ ico.icon('user', 'w-3.5 h-3.5') }} User</span>
+    <span class="text-slate-300">{{ ico.icon('chevron-right', 'w-3 h-3') }}</span>
+    {% for r in escalation_chain %}
+      <span class="pill bg-brand/10 text-brand">
+        {% if r == 'senior' %}{{ ico.icon('wrench', 'w-3.5 h-3.5') }}
+        {% elif r == 'supervisor' %}{{ ico.icon('briefcase', 'w-3.5 h-3.5') }}
+        {% elif r == 'asst_manager' %}{{ ico.icon('trending', 'w-3.5 h-3.5') }}
+        {% else %}{{ ico.icon('target', 'w-3.5 h-3.5') }}{% endif %}
+        {{ role_labels.get(r, r) }}
+        <span class="opacity-70">({{ users | selectattr('role', 'equalto', r) | list | length }})</span>
+      </span>
+      {% if not loop.last %}<span class="text-slate-300">{{ ico.icon('chevron-right', 'w-3 h-3') }}</span>{% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card p-6 mb-6 fade-up" x-data="{ open: false }">
+  <button type="button" @click="open = !open" class="w-full flex items-center justify-between gap-3 text-left">
+    <h3 class="font-bold text-slate-700 flex items-center gap-2">
+      {{ ico.icon('plus', 'w-4 h-4 text-brand') }} Tambah User
+    </h3>
+    <span class="text-slate-400 transition-transform duration-300" :class="open ? 'rotate-180' : ''">
+      {{ ico.icon('chevron-down', 'w-4 h-4') }}
+    </span>
+  </button>
+
+  <div x-show="open" x-cloak
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 -translate-y-2"
+       x-transition:enter-end="opacity-100 translate-y-0"
+       x-transition:leave="transition ease-in duration-200"
+       x-transition:leave-start="opacity-100 translate-y-0"
+       x-transition:leave-end="opacity-0 -translate-y-2">
+    <form method="post" action="{{ url_for('admin.create_user') }}" class="grid md:grid-cols-3 gap-3 mt-4 stagger">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="full_name" required placeholder="Nama lengkap" class="input">
+      <input type="text" name="username" required placeholder="Username" class="input">
+      <input type="email" name="email" required placeholder="Email" class="input">
+      <select name="role" class="input">
+        {% for r in roles %}<option value="{{ r }}">{{ role_labels.get(r, r.title()) }}</option>{% endfor %}
+      </select>
+      <select name="department_id" class="input">
+        <option value="">Departemen</option>
+        {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+      </select>
+      <input type="text" name="password" placeholder="Password (default: horensu123)" class="input">
+      <button class="btn-primary md:col-span-3 flex items-center justify-center gap-2">
+        {{ ico.icon('check', 'w-4 h-4') }} Buat User
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="card overflow-x-auto fade-up" style="animation-delay:.08s">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-slate-400 border-b border-slate-100">
+        <th class="p-4 font-semibold">Nama</th>
+        <th class="p-4 font-semibold">Username</th>
+        <th class="p-4 font-semibold">Role</th>
+        <th class="p-4 font-semibold">Departemen</th>
+        <th class="p-4 font-semibold">Status</th>
+        <th class="p-4"></th>
+      </tr>
+    </thead>
+
+    {#
+      `editing` lives on the tbody so the trigger row and the form row below it
+      share one Alpine scope. (Previously each trigger row declared its own
+      x-data, which the sibling form row could not see — the Edit button
+      toggled a variable nothing was listening to.)
+    #}
+    <tbody x-data="{ editing: null, removing: null }">
+      {% for u in users %}
+      <tr class="border-b border-slate-50 last:border-0 transition-colors hover:bg-slate-50/60"
+          :class="editing === {{ u.id }} || removing === {{ u.id }} ? 'bg-slate-50' : ''">
+        <td class="p-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full grid place-items-center text-white text-[11px] font-bold shrink-0" style="background: {{ u.avatar_color }}">{{ u.initials }}</div>
+            <span class="font-medium text-slate-800">{{ u.full_name }}</span>
+          </div>
+        </td>
+        <td class="p-4 text-slate-400">{{ u.username }}</td>
+        <td class="p-4">
+          <span class="pill bg-slate-100 text-slate-600">
+            {% if u.role == 'admin' %}{{ ico.icon('shield', 'w-3.5 h-3.5') }}
+            {% elif u.role == 'manager' %}{{ ico.icon('target', 'w-3.5 h-3.5') }}
+            {% elif u.role == 'asst_manager' %}{{ ico.icon('trending', 'w-3.5 h-3.5') }}
+            {% elif u.role == 'supervisor' %}{{ ico.icon('briefcase', 'w-3.5 h-3.5') }}
+            {% elif u.role == 'senior' %}{{ ico.icon('wrench', 'w-3.5 h-3.5') }}
+            {% else %}{{ ico.icon('user', 'w-3.5 h-3.5') }}{% endif %}
+            {{ u.role_label }}
+          </span>
+        </td>
+        <td class="p-4 text-slate-500">{{ u.department.name if u.department else '-' }}</td>
+        <td class="p-4">
+          {% if u.active %}
+            <span class="pill bg-emerald-50 text-emerald-600">{{ ico.icon('check-circle', 'w-3.5 h-3.5') }} Aktif</span>
+          {% else %}
+            <span class="pill bg-slate-100 text-slate-400">{{ ico.icon('power', 'w-3.5 h-3.5') }} Nonaktif</span>
+          {% endif %}
+        </td>
+        <td class="p-4">
+          <div class="flex items-center justify-end gap-2">
+            <button type="button"
+                    @click="editing = (editing === {{ u.id }} ? null : {{ u.id }}); removing = null"
+                    class="pill bg-brand/10 text-brand hover:bg-brand/20 transition"
+                    :aria-expanded="(editing === {{ u.id }}).toString()">
+              {{ ico.icon('edit', 'w-3.5 h-3.5') }}
+              <span x-text="editing === {{ u.id }} ? 'Tutup' : 'Edit'">Edit</span>
+            </button>
+            <form method="post" action="{{ url_for('admin.toggle_user_active', user_id=u.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="pill {{ 'bg-rose-50 text-rose-600 hover:bg-rose-100' if u.active else 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' }} transition"
+                      {{ 'disabled' if u.id == current_user.id and u.active }}
+                      title="{{ 'Anda tidak dapat menonaktifkan akun sendiri' if u.id == current_user.id else '' }}">
+                {{ ico.icon('power', 'w-3.5 h-3.5') }} {{ 'Nonaktifkan' if u.active else 'Aktifkan' }}
+              </button>
+            </form>
+            {% if u.id != current_user.id %}
+              <button type="button"
+                      @click="removing = (removing === {{ u.id }} ? null : {{ u.id }}); editing = null"
+                      class="pill bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition"
+                      title="Hapus akun">
+                {{ ico.icon('x', 'w-3.5 h-3.5') }} Hapus
+              </button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+
+      <tr x-show="removing === {{ u.id }}" x-cloak>
+        <td colspan="6" class="p-0">
+          <div x-show="removing === {{ u.id }}" x-cloak
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0 -translate-y-2"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               class="p-4 bg-rose-50/60 border-b border-rose-100">
+            {% set refs = blockers.get(u.id) %}
+            {% if refs %}
+              <div class="flex items-start gap-2.5 text-sm text-rose-700">
+                {{ ico.icon('alert', 'w-4 h-4 mt-0.5 shrink-0') }}
+                <div>
+                  <div class="font-semibold mb-1">{{ u.full_name }} tidak dapat dihapus</div>
+                  <p class="text-xs mb-2">
+                    Akun ini masih tercatat pada
+                    {% for label, count in refs %}{{ count }} {{ label }}{% if not loop.last %}, {% endif %}{% endfor %}.
+                    Menghapusnya akan memutus riwayat laporan tersebut.
+                  </p>
+                  <form method="post" action="{{ url_for('admin.toggle_user_active', user_id=u.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn-soft !py-1.5 !px-3 text-xs flex items-center gap-1.5">
+                      {{ ico.icon('power', 'w-3.5 h-3.5') }}
+                      {{ 'Nonaktifkan akun saja' if u.active else 'Akun sudah nonaktif' }}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            {% else %}
+              <div class="text-sm text-rose-700 mb-3 flex items-start gap-2.5">
+                {{ ico.icon('alert', 'w-4 h-4 mt-0.5 shrink-0') }}
+                <div>
+                  <div class="font-semibold mb-0.5">Hapus akun {{ u.full_name }} secara permanen?</div>
+                  <p class="text-xs">Akun ini belum memiliki riwayat laporan, sehingga aman dihapus. Tindakan ini tidak dapat dibatalkan.</p>
+                </div>
+              </div>
+              <form method="post" action="{{ url_for('admin.delete_user', user_id=u.id) }}"
+                    x-data="{ typed: '' }" class="flex flex-wrap items-end gap-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="flex-1 min-w-[200px]">
+                  <label class="label !text-rose-600">Ketik username <span class="font-mono">{{ u.username }}</span></label>
+                  <input type="text" name="confirm_username" x-model="typed" autocomplete="off"
+                         class="input !py-2 text-sm" placeholder="{{ u.username }}">
+                </div>
+                <button type="submit" class="btn-primary !bg-rose-600 !py-2 !px-4 text-sm flex items-center gap-2"
+                        :disabled="typed !== '{{ u.username }}'"
+                        :class="typed !== '{{ u.username }}' ? 'opacity-40 cursor-not-allowed' : ''">
+                  {{ ico.icon('x', 'w-4 h-4') }} Hapus permanen
+                </button>
+                <button type="button" @click="removing = null" class="btn-soft !py-2 !px-4 text-sm">Batal</button>
+              </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+
+      <tr x-show="editing === {{ u.id }}" x-cloak>
+        <td colspan="6" class="p-0">
+          <div x-show="editing === {{ u.id }}" x-cloak
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0 -translate-y-2"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               x-transition:leave="transition ease-in duration-150"
+               x-transition:leave-start="opacity-100 translate-y-0"
+               x-transition:leave-end="opacity-0 -translate-y-2"
+               class="p-4 bg-slate-50 border-b border-slate-100">
+            <div class="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-1.5">
+              {{ ico.icon('edit', 'w-3.5 h-3.5') }} Mengubah data {{ u.full_name }}
+            </div>
+            <form method="post" action="{{ url_for('admin.edit_user', user_id=u.id) }}" class="grid md:grid-cols-3 gap-3">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div>
+                <label class="label">Nama lengkap</label>
+                <input type="text" name="full_name" value="{{ u.full_name }}" required class="input">
+              </div>
+              <div>
+                <label class="label">Username <span class="text-slate-400 font-normal">(dipakai untuk masuk)</span></label>
+                <input type="text" name="username" value="{{ u.username }}" required class="input"
+                       pattern="[A-Za-z0-9._-]{3,64}" autocomplete="off"
+                       title="3-64 karakter: huruf, angka, titik, garis bawah, atau strip">
+              </div>
+              <div>
+                <label class="label">Email</label>
+                <input type="email" name="email" value="{{ u.email }}" required class="input">
+              </div>
+              <div>
+                <label class="label">Role</label>
+                <select name="role" class="input">
+                  {% for r in roles %}<option value="{{ r }}" {{ 'selected' if u.role == r }}>{{ role_labels.get(r, r.title()) }}</option>{% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Departemen</label>
+                <select name="department_id" class="input">
+                  <option value="">— Tanpa departemen —</option>
+                  {% for d in departments %}<option value="{{ d.id }}" {{ 'selected' if u.department_id == d.id }}>{{ d.name }}</option>{% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="label">Reset password (opsional)</label>
+                <input type="text" name="password" placeholder="Kosongkan bila tidak diubah" class="input">
+              </div>
+              <div class="flex items-end gap-2">
+                <button class="btn-primary flex items-center justify-center gap-2 flex-1">
+                  {{ ico.icon('check', 'w-4 h-4') }} Simpan
+                </button>
+                <button type="button" @click="editing = null" class="btn-soft">Batal</button>
+              </div>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

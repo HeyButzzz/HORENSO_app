@@ -1,0 +1,12 @@
+{% import "partials/icons.html" as ico %}
+<div class="flex gap-1 mb-6 overflow-x-auto text-sm font-semibold fade-up">
+  {% for endpoint, label, name in [
+    ('admin.index','Overview','chart'), ('admin.users','Users','users'), ('admin.departments','Departments','building'),
+    ('admin.categories','Categories','tag'), ('admin.priorities','Priorities','flag'), ('admin.statuses','Statuses','circle-dot'),
+    ('admin.theme','Theme / Branding','sparkles'), ('admin.audit_log','Audit Log','clock')] %}
+    <a href="{{ url_for(endpoint) }}"
+       class="tab-btn px-4 py-2 rounded-xl whitespace-nowrap flex items-center gap-2 {{ 'bg-brand text-white shadow-md shadow-brand/20' if request.endpoint==endpoint else 'bg-white text-slate-500 hover:bg-slate-50' }}">
+      {{ ico.icon(name, 'w-4 h-4') }} {{ label }}
+    </a>
+  {% endfor %}
+</div>

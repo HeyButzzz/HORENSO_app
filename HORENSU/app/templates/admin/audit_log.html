@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Audit Log{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+  {{ ico.icon('settings', 'w-5 h-5 text-slate-400') }} Administration
+</h1>
+{% include "admin/_nav.html" %}
+
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4 fade-up">
+  <div>
+    <h3 class="font-bold text-slate-700 flex items-center gap-2">
+      {{ ico.icon('clock', 'w-4 h-4 text-brand') }} Audit Log
+    </h3>
+    <p class="text-xs text-slate-400 mt-0.5">
+      Seluruh perubahan di aplikasi &mdash; laporan, user, master data, branding, dan sesi login.
+      Waktu ditampilkan dalam {{ tz_label }} (GMT+7).
+    </p>
+  </div>
+  <span class="pill bg-brand/10 text-brand">{{ total }} catatan</span>
+</div>
+
+<form method="get" class="card p-4 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3 text-sm fade-up" style="animation-delay:.05s">
+  <div class="relative md:col-span-2">
+    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{{ ico.icon('search', 'w-4 h-4') }}</span>
+    <input type="text" name="q" value="{{ filters.get('q', '') }}" class="input !pl-9"
+           placeholder="Cari aksi, detail, atau objek...">
+  </div>
+  <select name="entity_type" class="input" onchange="this.form.submit()">
+    <option value="">Semua area</option>
+    {% for t in entity_types %}
+      <option value="{{ t }}" {{ 'selected' if filters.get('entity_type') == t }}>{{ entity_labels.get(t, t.title()) }}</option>
+    {% endfor %}
+  </select>
+  <select name="user" class="input" onchange="this.form.submit()">
+    <option value="">Semua pelaku</option>
+    {% for u in actors %}
+      <option value="{{ u.id }}" {{ 'selected' if filters.get('user')|string == u.id|string }}>{{ u.full_name }}</option>
+    {% endfor %}
+  </select>
+  {% if filters.get('q') or filters.get('entity_type') or filters.get('user') %}
+    <a href="{{ url_for('admin.audit_log') }}" class="btn-soft text-xs flex items-center justify-center gap-1.5 md:col-span-4">
+      {{ ico.icon('x', 'w-3.5 h-3.5') }} Hapus filter
+    </a>
+  {% endif %}
+</form>
+
+<div class="card overflow-x-auto fade-up" style="animation-delay:.08s">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-slate-400 border-b border-slate-100">
+        <th class="p-4 font-semibold whitespace-nowrap">Waktu ({{ tz_label }})</th>
+        <th class="p-4 font-semibold">Area</th>
+        <th class="p-4 font-semibold">Objek</th>
+        <th class="p-4 font-semibold">Pelaku</th>
+        <th class="p-4 font-semibold">Aksi</th>
+        <th class="p-4 font-semibold">Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr class="border-b border-slate-50 last:border-0 transition-colors hover:bg-slate-50">
+        <td class="p-4 text-slate-400 whitespace-nowrap align-top">
+          <div>{{ log.created_at | dt('%d %b %Y') }}</div>
+          <div class="text-xs">{{ log.created_at | dt('%H:%M:%S') }}</div>
+        </td>
+        <td class="p-4 align-top">
+          <span class="pill bg-slate-100 text-slate-600">
+            {% if log.entity_type == 'problem' %}{{ ico.icon('clipboard', 'w-3.5 h-3.5') }}
+            {% elif log.entity_type == 'user' %}{{ ico.icon('users', 'w-3.5 h-3.5') }}
+            {% elif log.entity_type == 'department' %}{{ ico.icon('building', 'w-3.5 h-3.5') }}
+            {% elif log.entity_type == 'category' %}{{ ico.icon('tag', 'w-3.5 h-3.5') }}
+            {% elif log.entity_type == 'priority' %}{{ ico.icon('flag', 'w-3.5 h-3.5') }}
+            {% elif log.entity_type == 'status' %}{{ ico.icon('circle-dot', 'w-3.5 h-3.5') }}
+            {% elif log.entity_type == 'theme' %}{{ ico.icon('sparkles', 'w-3.5 h-3.5') }}
+            {% elif log.entity_type == 'session' %}{{ ico.icon('logout', 'w-3.5 h-3.5') }}
+            {% elif log.entity_type == 'account' %}{{ ico.icon('lock', 'w-3.5 h-3.5') }}
+            {% else %}{{ ico.icon('layers', 'w-3.5 h-3.5') }}{% endif %}
+            {{ log.entity_type_label }}
+          </span>
+        </td>
+        <td class="p-4 align-top">
+          {% if log.problem_id and log.problem %}
+            <a href="{{ url_for('problems.detail', problem_id=log.problem_id) }}"
+               class="text-brand font-medium hover:underline">#{{ log.problem.code }}</a>
+          {% else %}
+            <span class="text-slate-600">{{ log.target_label }}</span>
+          {% endif %}
+        </td>
+        <td class="p-4 align-top whitespace-nowrap">
+          <div class="text-slate-700">{{ log.user.full_name if log.user else 'Sistem' }}</div>
+          {% if log.ip_address %}<div class="text-xs text-slate-400 font-mono">{{ log.ip_address }}</div>{% endif %}
+        </td>
+        <td class="p-4 align-top text-slate-700">{{ log.action }}</td>
+        <td class="p-4 align-top text-slate-500 max-w-md">{{ log.detail or '-' }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="p-10 text-center text-slate-400">
+          <span class="inline-block text-slate-300 mb-3">{{ ico.icon('inbox', 'w-10 h-10 mx-auto') }}</span>
+          <p>Tidak ada catatan yang cocok dengan filter ini.</p>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if pages > 1 %}
+<div class="flex items-center justify-between gap-3 mt-4 text-sm">
+  {% set base = filters.to_dict() %}
+  {% set _ = base.pop('page', None) %}
+  {% if page > 1 %}
+    <a href="{{ url_for('admin.audit_log', page=page-1, **base) }}" class="btn-soft !py-2 !px-3 text-xs flex items-center gap-1.5">
+      {{ ico.icon('arrow-left', 'w-3.5 h-3.5') }} Sebelumnya
+    </a>
+  {% else %}<span></span>{% endif %}
+  <span class="text-xs text-slate-400">Halaman {{ page }} dari {{ pages }}</span>
+  {% if page < pages %}
+    <a href="{{ url_for('admin.audit_log', page=page+1, **base) }}" class="btn-soft !py-2 !px-3 text-xs flex items-center gap-1.5">
+      Berikutnya {{ ico.icon('arrow-right', 'w-3.5 h-3.5') }}
+    </a>
+  {% else %}<span></span>{% endif %}
+</div>
+{% endif %}
+
+<p class="text-xs text-slate-400 mt-3">
+  Audit log bersifat permanen dan tidak dapat dihapus melalui antarmuka pengguna.
+</p>
+{% endblock %}

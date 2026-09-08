@@ -1,0 +1,136 @@
+{% import "partials/icons.html" as ico %}
+
+{#
+  Summary + progress mapping for one problem card.
+  Two rows: where the card is in the HORENSO journey, and which tier of the
+  escalation ladder is holding it right now.
+#}
+{% macro progress_map(problem, ladder=None) %}
+<div class="card p-5 mb-6 fade-up">
+
+  {# ---- Headline summary ---- #}
+  <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+    <div class="min-w-0">
+      <h3 class="font-bold text-slate-700 flex items-center gap-2">
+        {{ ico.icon('activity', 'w-4 h-4 text-brand') }} Ringkasan &amp; progres
+      </h3>
+      <p class="text-xs text-slate-400 mt-0.5">
+        {% if problem.closed_at %}
+          Selesai dan telah ditutup pada {{ problem.closed_at | dt }} {{ tz_label }}.
+        {% elif problem.resolved_at %}
+          Diselesaikan pada tingkat <strong class="text-slate-500">{{ problem.resolved_by_role_label }}</strong>,
+          menunggu verifikasi penutupan.
+        {% elif problem.open_escalation %}
+          Menunggu tindakan <strong class="text-slate-500">{{ problem.open_escalation.to_role_label }}</strong>
+          atas permintaan {{ problem.open_escalation.from_role_label }}.
+        {% else %}
+          Sedang ditangani pada tingkat <strong class="text-slate-500">{{ problem.handled_by_role_label }}</strong>.
+        {% endif %}
+      </p>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="pill bg-brand/10 text-brand">{{ problem.progress_percent }}% tuntas</span>
+      {% if problem.is_overdue %}
+        <span class="pill bg-rose-50 text-rose-600">{{ ico.icon('alert', 'w-3.5 h-3.5') }} Overdue</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ---- Progress bar ---- #}
+  <div class="h-2 rounded-full bg-slate-100 overflow-hidden mb-5">
+    <div class="h-full rounded-full transition-[width] duration-700 ease-out
+                {{ 'bg-emerald-500' if problem.closed_at else 'bg-brand' }}"
+         style="width: {{ problem.progress_percent }}%"></div>
+  </div>
+
+  {# ---- HORENSO stage mapping ---- #}
+  <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+    {{ ico.icon('layers', 'w-3.5 h-3.5') }} Tahapan HORENSO
+  </div>
+  <div class="overflow-x-auto -mx-1 px-1 mb-5">
+    <div class="flex items-stretch gap-1 min-w-max">
+      {% for step in problem.stage_map %}
+        <div class="flex items-center gap-1">
+          <div class="rounded-xl px-3 py-2 min-w-[7.5rem] border transition
+                      {% if step.done %} border-emerald-200 bg-emerald-50/60
+                      {% elif step.current %} border-brand bg-brand/5
+                      {% else %} border-slate-100 bg-slate-50/60 {% endif %}">
+            <div class="flex items-center gap-1.5">
+              <span class="{% if step.done %}text-emerald-500{% elif step.current %}text-brand{% else %}text-slate-300{% endif %}">
+                {{ ico.icon('check-circle' if step.done else ('circle-dot' if step.current else 'circle-dot'), 'w-3.5 h-3.5') }}
+              </span>
+              <span class="text-xs font-semibold
+                           {% if step.done %}text-emerald-700{% elif step.current %}text-brand{% else %}text-slate-400{% endif %}">
+                {{ step.label }}
+              </span>
+            </div>
+            <div class="text-[10px] mt-0.5 leading-tight
+                        {% if step.done %}text-emerald-600{% elif step.current %}text-slate-500{% else %}text-slate-400{% endif %}">
+              {{ step.sub }}
+            </div>
+          </div>
+          {% if not loop.last %}
+            <span class="{% if step.done %}text-emerald-300{% else %}text-slate-200{% endif %}">
+              {{ ico.icon('chevron-right', 'w-3.5 h-3.5') }}
+            </span>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ---- Escalation ladder mapping ---- #}
+  {% if ladder %}
+  <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+    {{ ico.icon('trending', 'w-3.5 h-3.5') }} Tingkat penanganan
+  </div>
+  <div class="overflow-x-auto -mx-1 px-1">
+    <div class="flex items-center gap-1.5 min-w-max text-xs">
+      <span class="pill bg-slate-100 text-slate-500">
+        {{ ico.icon('user', 'w-3.5 h-3.5') }} Pelapor
+      </span>
+      <span class="text-slate-300">{{ ico.icon('chevron-right', 'w-3 h-3') }}</span>
+      {% for tier in ladder %}
+        {% set is_here = tier.role == problem.handled_by_role %}
+        {% set passed = ROLE_RANK[tier.role] < ROLE_RANK[problem.handled_by_role] %}
+        <span class="pill transition
+                     {% if is_here %} bg-brand text-white
+                     {% elif passed %} bg-brand/10 text-brand
+                     {% elif tier.members %} bg-slate-100 text-slate-500
+                     {% else %} bg-slate-50 text-slate-300 {% endif %}"
+              title="{{ tier.members | map(attribute='full_name') | join(', ') or 'belum ada personel' }}">
+          {{ tier.label }}
+          <span class="opacity-70">({{ tier.members|length }})</span>
+          {% if is_here %}{{ ico.icon('circle-dot', 'w-3 h-3') }}{% endif %}
+        </span>
+        {% if not loop.last %}<span class="text-slate-300">{{ ico.icon('chevron-right', 'w-3 h-3') }}</span>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ---- Key facts ---- #}
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-4 border-t border-slate-100 text-xs">
+    <div>
+      <div class="text-slate-400 mb-0.5">Status</div>
+      <div class="font-semibold text-slate-700">{{ problem.status.label if problem.status else '-' }}</div>
+    </div>
+    <div>
+      <div class="text-slate-400 mb-0.5">PIC saat ini</div>
+      <div class="font-semibold text-slate-700 truncate">{{ problem.pic.full_name if problem.pic else 'Belum ditugaskan' }}</div>
+    </div>
+    <div>
+      <div class="text-slate-400 mb-0.5">Umur laporan</div>
+      <div class="font-semibold {{ 'text-rose-600' if problem.is_overdue else 'text-slate-700' }}">{{ problem.age_display }}</div>
+    </div>
+    <div>
+      <div class="text-slate-400 mb-0.5">Konfirmasi atasan</div>
+      <div class="font-semibold text-slate-700">
+        {% if not problem.resolved_at %}—
+        {% elif problem.acknowledgement_complete %}Lengkap
+        {% else %}{{ problem.pending_acknowledgers|length }} menunggu{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}

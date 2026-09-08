@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Laporkan Masalah &middot; Hokoku{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  {% include "partials/wizard_progress.html" %}
+  <div class="text-center mb-6 fade-up">
+    <h1 class="text-xl font-extrabold text-slate-800">What happened?</h1>
+    <p class="text-sm text-slate-400 mt-1">Ceritakan apa yang Anda amati. Anda belum perlu tahu penyebabnya.</p>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="card p-6 space-y-4 fade-up" style="animation-delay:.06s">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label class="label">Judul masalah</label>
+      <input type="text" name="title" required value="{{ draft.get('title','') }}" class="input" placeholder="Contoh: HPLC-02 tidak dapat digunakan">
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="label">Tanggal &amp; waktu ditemukan</label>
+        <input type="datetime-local" name="date_discovered" value="{{ draft.get('date_discovered','') }}" class="input">
+        <p class="text-xs text-slate-400 mt-1">Waktu {{ tz_label }} (GMT+7).</p>
+      </div>
+      <div>
+        <label class="label">Departemen</label>
+        <select name="department_id" required class="input">
+          <option value="">Pilih departemen</option>
+          {% for d in departments %}
+            <option value="{{ d.id }}" {{ 'selected' if draft.get('department_id')==d.id }}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <label class="label">Area / proses</label>
+        <input type="text" name="area_process" value="{{ draft.get('area_process','') }}" class="input" placeholder="Contoh: Lab Instrumen">
+      </div>
+      <div x-data="{
+             cat: '{{ draft.get('category_id') or '' }}',
+             refs: {
+               {% for c in categories %}'{{ c.id }}': {{ c.reference_items | tojson }}{% if not loop.last %},{% endif %}{% endfor %}
+             }
+           }">
+        <label class="label">Kategori</label>
+        <select name="category_id" class="input" x-model="cat">
+          <option value="">Pilih kategori</option>
+          {% for c in categories %}
+            <option value="{{ c.id }}" {{ 'selected' if draft.get('category_id')==c.id }}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+        {# Reference list for the chosen category, so a reporter can see what belongs here. #}
+        <template x-if="cat && refs[cat] && refs[cat].length">
+          <div x-transition class="mt-2">
+            <p class="text-[11px] font-semibold text-slate-400 mb-1.5">Termasuk dalam kategori ini:</p>
+            <div class="flex flex-wrap gap-1.5">
+              <template x-for="item in refs[cat]" :key="item">
+                <span class="pill bg-slate-100 text-slate-500 !text-[11px]" x-text="item"></span>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div>
+      <label class="label">What do we know so far?</label>
+      <textarea name="description" rows="3" class="input" placeholder="Deskripsi singkat kejadian">{{ draft.get('description','') }}</textarea>
+    </div>
+
+    <div>
+      <label class="label">Dampak</label>
+      <textarea name="impact" rows="2" class="input" placeholder="Apa dampaknya terhadap pekerjaan?">{{ draft.get('impact','') }}</textarea>
+    </div>
+
+    <div>
+      <label class="label">Tingkat prioritas</label>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {% for p in priorities %}
+          <label class="flex items-center gap-2 border rounded-xl px-3 py-2.5 cursor-pointer text-sm has-[:checked]:border-brand has-[:checked]:bg-brand/5">
+            <input type="radio" name="priority_id" value="{{ p.id }}" required {{ 'checked' if draft.get('priority_id')==p.id }}>
+            <span class="flex items-center gap-2">{{ ico.priority_dot(p) }}{{ p.label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <label class="label">Lampiran / bukti (opsional)</label>
+      <input type="file" name="attachment" class="input">
+    </div>
+
+    <div class="flex justify-end pt-2">
+      <button type="submit" class="btn-primary flex items-center gap-2">Lanjutkan {{ ico.icon('arrow-right', 'w-4 h-4') }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

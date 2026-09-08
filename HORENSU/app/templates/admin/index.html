@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Administration{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+  {{ ico.icon('settings', 'w-5 h-5 text-slate-400') }} Administration
+</h1>
+{% include "admin/_nav.html" %}
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 stagger">
+  {% for value, label, name, tone in [
+    (total_problems, 'Total Problems', 'layers', 'text-brand'),
+    (overdue, 'Overdue', 'alert', 'text-rose-500'),
+    (user_count, 'Users', 'users', 'text-sky-600'),
+    (by_status.values()|sum, 'Tracked Records', 'activity', 'text-emerald-600')] %}
+    <div class="card lift p-5">
+      <div class="flex items-start justify-between gap-2">
+        <div class="text-2xl font-extrabold {{ tone if label == 'Overdue' else '' }}">{{ value }}</div>
+        <span class="{{ tone }} opacity-70">{{ ico.icon(name, 'w-5 h-5') }}</span>
+      </div>
+      <div class="text-xs text-slate-400 mt-1">{{ label }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="grid lg:grid-cols-2 gap-6 mb-6 stagger">
+  <div class="card p-6">
+    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">{{ ico.icon('circle-dot', 'w-4 h-4 text-brand') }} Problem Overview</h3>
+    {% for label, count in by_status.items() %}
+      <div class="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0">
+        <span class="text-slate-500">{{ label }}</span><span class="font-semibold">{{ count }}</span>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="card p-6">
+    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">{{ ico.icon('shield', 'w-4 h-4 text-brand') }} HORENSO Compliance</h3>
+    {% for label, pct in compliance.items() %}
+      <div class="mb-3">
+        <div class="flex justify-between text-xs text-slate-500 mb-1"><span>{{ label }}</span><span>{{ pct }}%</span></div>
+        <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div class="h-full bg-brand rounded-full transition-[width] duration-700 ease-out" style="width: {{ pct }}%"></div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="grid lg:grid-cols-2 gap-6 stagger">
+  <div class="card p-6">
+    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">{{ ico.icon('building', 'w-4 h-4 text-brand') }} By Department</h3>
+    {% for label, count in by_department.items() %}
+      <div class="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0"><span class="text-slate-500">{{ label }}</span><span class="font-semibold">{{ count }}</span></div>
+    {% endfor %}
+  </div>
+  <div class="card p-6">
+    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">{{ ico.icon('flag', 'w-4 h-4 text-brand') }} By Priority</h3>
+    {% for label, count in by_priority.items() %}
+      <div class="flex items-center justify-between text-sm py-1.5 border-b border-slate-50 last:border-0"><span class="text-slate-500">{{ label }}</span><span class="font-semibold">{{ count }}</span></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

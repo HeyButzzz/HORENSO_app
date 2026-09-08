@@ -1,0 +1,62 @@
+{% import "partials/icons.html" as ico %}
+
+{% macro priority_pill(priority) %}
+  {% if priority %}
+    <span class="pill" style="background: {{ priority.color }}22; color: {{ priority.color }};">
+      {{ ico.priority_dot(priority) }}{{ priority.label }}
+    </span>
+  {% endif %}
+{% endmacro %}
+
+{% macro status_pill(status) %}
+  {% if status %}
+    <span class="pill" style="background: {{ status.color }}22; color: {{ status.color }};">{{ status.label }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro horensu_track(problem) %}
+  <div class="horensu-track">
+    <div class="horensu-dot done" title="Report"></div>
+    <div class="horensu-line {{ 'done' if problem.stage_inform_done else '' }}"></div>
+    <div class="horensu-dot {{ 'done' if problem.stage_inform_done else '' }}" title="Inform"></div>
+    <div class="horensu-line {{ 'done' if problem.stage_consult_done else '' }}"></div>
+    <div class="horensu-dot {{ 'done' if problem.stage_consult_done else '' }}" title="Consult"></div>
+    <div class="horensu-line {{ 'done' if problem.stage_action_done else '' }}"></div>
+    <div class="horensu-dot {{ 'done' if problem.stage_action_done else '' }}" title="Action"></div>
+    <div class="horensu-line {{ 'done' if problem.stage_closure_done else '' }}"></div>
+    <div class="horensu-dot {{ 'done' if problem.stage_closure_done else '' }}" title="Closure"></div>
+  </div>
+{% endmacro %}
+
+{% macro aging_badge(problem) %}
+  {% if problem.is_overdue %}
+    <span class="pill bg-rose-50 text-rose-600">{{ ico.icon('alert', 'w-3.5 h-3.5') }} Overdue &middot; {{ problem.age_display }}</span>
+  {% else %}
+    <span class="pill bg-slate-100 text-slate-500">{{ ico.icon('clock', 'w-3.5 h-3.5') }} {{ problem.age_display }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro problem_card(p) %}
+  <a href="{{ url_for('problems.detail', problem_id=p.id) }}" class="card lift block p-5">
+    <div class="flex items-start justify-between gap-2 mb-2">
+      <span class="text-xs font-mono text-slate-400">#{{ p.code }}</span>
+      {{ priority_pill(p.priority) }}
+    </div>
+    <h3 class="font-semibold text-slate-800 mb-1 leading-snug">{{ p.title }}</h3>
+    <div class="text-xs text-slate-400 mb-3">
+      {{ p.department.name if p.department else '-' }} &middot; {{ p.category.name if p.category else '-' }} &middot; {{ p.created_at | dt('%d %b %Y') }}
+    </div>
+    <div class="flex items-center gap-3 text-xs text-slate-500 mb-3">
+      <span class="inline-flex items-center gap-1.5">{{ ico.icon('user', 'w-3.5 h-3.5 text-slate-400') }} {{ p.reporter.full_name if p.reporter else '-' }}</span>
+      {% if p.pic %}<span class="inline-flex items-center gap-1.5">{{ ico.icon('wrench', 'w-3.5 h-3.5 text-slate-400') }} {{ p.pic.full_name }}</span>{% endif %}
+    </div>
+    <div class="flex items-center justify-between">
+      {{ status_pill(p.status) }}
+      {{ horensu_track(p) }}
+    </div>
+    <div class="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+      <span>Update {{ p.updated_at | timeago }}</span>
+      {{ aging_badge(p) }}
+    </div>
+  </a>
+{% endmacro %}

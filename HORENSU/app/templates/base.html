@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}{{ theme.app_name if theme else "HORENSO" }}{% endblock %}</title>
+<link rel="icon" href="{{ theme.favicon_src if theme and theme.favicon_src else url_for('static', filename='favicon.svg') }}">
+
+{# Applied before first paint so a dark-mode reload never flashes white. #}
+<script>
+  (function () {
+    try {
+      var stored = localStorage.getItem('horensu.theme');
+      var mode = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if (mode === 'dark') document.documentElement.classList.add('dark');
+    } catch (e) { /* private mode / storage blocked — stay on light */ }
+  })();
+</script>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          brand: { DEFAULT: 'var(--color-primary)' },
+          secondary: { DEFAULT: 'var(--color-secondary)' },
+          accent: { DEFAULT: 'var(--color-accent)' },
+        },
+        borderRadius: { '2xl': '1rem', '3xl': '1.25rem' }
+      }
+    }
+  }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.14.1/cdn.min.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+  :root{
+    --color-primary: {{ theme.primary_color if theme else '#4F46E5' }};
+    --color-secondary: {{ theme.secondary_color if theme else '#0EA5E9' }};
+    --color-accent: {{ theme.accent_color if theme else '#F59E0B' }};
+    --color-bg: {{ theme.background_color if theme else '#F8FAFC' }};
+  }
+  body{ font-family: '{{ theme.font_family if theme else "Inter" }}', ui-sans-serif, system-ui, sans-serif; background: var(--color-bg); }
+</style>
+
+{# Defined before Alpine loads (deferred) so x-data="appShell()" resolves. #}
+<script>
+  window.appShell = function () {
+    var read = function (key, fallback) {
+      try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
+    };
+    var write = function (key, value) {
+      try { localStorage.setItem(key, value); } catch (e) { /* ignore */ }
+    };
+    return {
+      collapsed: read('horensu.sidebar', 'expanded') === 'collapsed',
+      mobileOpen: false,
+      theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+
+      toggleSidebar: function () {
+        this.collapsed = !this.collapsed;
+        write('horensu.sidebar', this.collapsed ? 'collapsed' : 'expanded');
+      },
+      setTheme: function (mode) {
+        this.theme = mode;
+        document.documentElement.classList.toggle('dark', mode === 'dark');
+        write('horensu.theme', mode);
+      },
+      toggleTheme: function () {
+        this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
+      }
+    };
+  };
+</script>
+</head>
+<body class="min-h-screen text-slate-800">
+{% if current_user.is_authenticated %}
+<div class="flex min-h-screen" x-data="appShell()">
+
+  {% include "partials/sidebar.html" %}
+
+  {# Scrim behind the mobile drawer. #}
+  <div x-show="mobileOpen" x-cloak x-transition.opacity.duration.200ms
+       @click="mobileOpen = false"
+       class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-30 md:hidden"></div>
+
+  <div class="flex-1 flex flex-col min-w-0">
+    {% include "partials/topbar.html" %}
+    <main class="flex-1 p-4 md:p-8 max-w-[1400px] w-full mx-auto page-enter">
+      {% include "partials/flash.html" %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="text-center text-xs text-slate-400 py-6">
+      <div>{{ theme.footer_text if theme else '' }}</div>
+      <div class="mt-1">Waktu sistem: {{ now_wib | dt('%d %b %Y, %H:%M') }} {{ tz_label }} (GMT+7)</div>
+    </footer>
+  </div>
+</div>
+{% else %}
+  {% include "partials/flash.html" %}
+  {% block guest_content %}{% endblock %}
+{% endif %}
+</body>
+</html>

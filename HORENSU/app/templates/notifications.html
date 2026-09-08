@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Notifikasi{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6 fade-up">
+  <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+    {{ ico.icon('bell', 'w-5 h-5 text-slate-400') }} Notifikasi
+  </h1>
+  <form method="post" action="{{ url_for('main.mark_all_read') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn-soft text-sm flex items-center gap-2">{{ ico.icon('check', 'w-4 h-4') }} Tandai semua dibaca</button>
+  </form>
+</div>
+<div class="card divide-y divide-slate-100 stagger fade-up" style="animation-delay:.05s">
+  {% for n in notifications %}
+    <form method="post" action="{{ url_for('main.mark_notification_read', notif_id=n.id) }}" class="block">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="w-full text-left px-5 py-4 flex items-start gap-3 hover:bg-slate-50 transition {{ '' if n.is_read else 'bg-brand/5' }}">
+        <div class="w-2 h-2 rounded-full mt-2 shrink-0 {{ 'bg-brand' if not n.is_read else 'bg-transparent' }}"></div>
+        <div class="flex-1">
+          <div class="text-sm text-slate-700">{{ n.message }}</div>
+          <div class="text-xs text-slate-400 mt-1">{{ n.created_at | timeago }}</div>
+        </div>
+      </button>
+    </form>
+  {% else %}
+    <div class="py-12 text-center">
+      <span class="inline-block text-slate-300 mb-3">{{ ico.icon('inbox', 'w-10 h-10 mx-auto') }}</span>
+      <p class="text-sm text-slate-400">Belum ada notifikasi.</p>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

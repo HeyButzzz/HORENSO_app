@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Theme / Branding{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+  {{ ico.icon('settings', 'w-5 h-5 text-slate-400') }} Administration
+</h1>
+{% include "admin/_nav.html" %}
+
+<div class="grid lg:grid-cols-2 gap-6 stagger">
+  <form method="post" enctype="multipart/form-data" class="card p-6 space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <h3 class="font-bold text-slate-700 flex items-center gap-2">
+      {{ ico.icon('sparkles', 'w-4 h-4 text-brand') }} Branding
+    </h3>
+    <div><label class="label">Nama Aplikasi</label><input type="text" name="app_name" value="{{ theme.app_name }}" class="input"></div>
+    <div><label class="label">Nama Perusahaan</label><input type="text" name="company_name" value="{{ theme.company_name }}" class="input"></div>
+
+    {# ---- Logo upload ---- #}
+    <div class="rounded-2xl border border-slate-100 p-4" x-data="{ name: '', size: 0, remove: false }">
+      <label class="label flex items-center gap-2">{{ ico.icon('file', 'w-4 h-4 text-slate-400') }} Logo aplikasi</label>
+
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 grid place-items-center overflow-hidden shrink-0">
+          {% if theme.logo_src %}
+            <img src="{{ theme.logo_src }}" alt="logo saat ini" class="w-full h-full object-contain" :class="remove ? 'opacity-25' : ''">
+          {% else %}
+            <span class="text-slate-300">{{ ico.icon('file', 'w-6 h-6') }}</span>
+          {% endif %}
+        </div>
+        <div class="min-w-0 text-xs">
+          {% if theme.logo_filename %}
+            <div class="text-slate-600 font-medium truncate">{{ theme.logo_filename }}</div>
+            <label class="inline-flex items-center gap-1.5 text-rose-600 cursor-pointer mt-1">
+              <input type="checkbox" name="remove_logo" value="1" x-model="remove"> Hapus logo
+            </label>
+          {% elif theme.logo_url %}
+            <div class="text-slate-500 truncate">URL lama: {{ theme.logo_url }}</div>
+            <label class="inline-flex items-center gap-1.5 text-rose-600 cursor-pointer mt-1">
+              <input type="checkbox" name="remove_logo" value="1" x-model="remove"> Hapus
+            </label>
+          {% else %}
+            <div class="text-slate-400">Belum ada logo — inisial “H” yang dipakai.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.svg,.webp" class="input !text-xs"
+             @change="name = $event.target.files[0]?.name || ''; size = $event.target.files[0]?.size || 0">
+      <p class="text-xs text-slate-400 mt-2">
+        Disarankan: <strong class="text-slate-500">{{ config.LOGO_RECOMMENDED }}</strong>.
+        Format: {{ config.LOGO_EXTENSIONS | map('upper') | sort | join(', ') }}.
+      </p>
+      <template x-if="name">
+        <p class="text-xs mt-1" x-cloak
+           :class="size > {{ config.MAX_LOGO_BYTES }} ? 'text-rose-600' : 'text-emerald-600'">
+          <span x-text="name"></span> — <span x-text="Math.round(size/1024)"></span> KB
+          <span x-show="size > {{ config.MAX_LOGO_BYTES }}">(melebihi batas {{ config.MAX_LOGO_BYTES // 1024 }} KB)</span>
+        </p>
+      </template>
+    </div>
+
+    {# ---- Favicon upload ---- #}
+    <div class="rounded-2xl border border-slate-100 p-4" x-data="{ name: '', size: 0, remove: false }">
+      <label class="label flex items-center gap-2">{{ ico.icon('target', 'w-4 h-4 text-slate-400') }} Favicon (ikon tab browser)</label>
+
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 grid place-items-center overflow-hidden shrink-0">
+          {% if theme.favicon_src %}
+            <img src="{{ theme.favicon_src }}" alt="favicon saat ini" class="w-full h-full object-contain" :class="remove ? 'opacity-25' : ''">
+          {% else %}
+            <span class="text-slate-300">{{ ico.icon('target', 'w-5 h-5') }}</span>
+          {% endif %}
+        </div>
+        <div class="min-w-0 text-xs">
+          {% if theme.favicon_filename %}
+            <div class="text-slate-600 font-medium truncate">{{ theme.favicon_filename }}</div>
+            <label class="inline-flex items-center gap-1.5 text-rose-600 cursor-pointer mt-1">
+              <input type="checkbox" name="remove_favicon" value="1" x-model="remove"> Hapus favicon
+            </label>
+          {% elif theme.favicon_url %}
+            <div class="text-slate-500 truncate">URL lama: {{ theme.favicon_url }}</div>
+            <label class="inline-flex items-center gap-1.5 text-rose-600 cursor-pointer mt-1">
+              <input type="checkbox" name="remove_favicon" value="1" x-model="remove"> Hapus
+            </label>
+          {% else %}
+            <div class="text-slate-400">Belum ada favicon — memakai ikon bawaan.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <input type="file" name="favicon_file" accept=".png,.ico,.svg" class="input !text-xs"
+             @change="name = $event.target.files[0]?.name || ''; size = $event.target.files[0]?.size || 0">
+      <p class="text-xs text-slate-400 mt-2">
+        Disarankan: <strong class="text-slate-500">{{ config.FAVICON_RECOMMENDED }}</strong>.
+        Format: {{ config.FAVICON_EXTENSIONS | map('upper') | sort | join(', ') }}.
+      </p>
+      <template x-if="name">
+        <p class="text-xs mt-1" x-cloak
+           :class="size > {{ config.MAX_FAVICON_BYTES }} ? 'text-rose-600' : 'text-emerald-600'">
+          <span x-text="name"></span> — <span x-text="Math.round(size/1024)"></span> KB
+          <span x-show="size > {{ config.MAX_FAVICON_BYTES }}">(melebihi batas {{ config.MAX_FAVICON_BYTES // 1024 }} KB)</span>
+        </p>
+      </template>
+    </div>
+
+    <h3 class="font-bold text-slate-700 pt-2">Warna</h3>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label class="label">Primary</label><input type="color" name="primary_color" value="{{ theme.primary_color }}" class="w-full h-10 rounded-lg border-0"></div>
+      <div><label class="label">Secondary</label><input type="color" name="secondary_color" value="{{ theme.secondary_color }}" class="w-full h-10 rounded-lg border-0"></div>
+      <div><label class="label">Accent</label><input type="color" name="accent_color" value="{{ theme.accent_color }}" class="w-full h-10 rounded-lg border-0"></div>
+      <div><label class="label">Background</label><input type="color" name="background_color" value="{{ theme.background_color }}" class="w-full h-10 rounded-lg border-0"></div>
+    </div>
+
+    <h3 class="font-bold text-slate-700 pt-2">Teks &amp; Pesan</h3>
+    <div><label class="label">Pesan Sambutan (Dashboard)</label><input type="text" name="welcome_message" value="{{ theme.welcome_message }}" class="input"></div>
+    <div><label class="label">Tagline Login</label><input type="text" name="login_tagline" value="{{ theme.login_tagline }}" class="input"></div>
+    <div><label class="label">Teks Footer</label><input type="text" name="footer_text" value="{{ theme.footer_text }}" class="input"></div>
+
+    <button class="btn-primary w-full flex items-center justify-center gap-2">
+      {{ ico.icon('check', 'w-4 h-4') }} Simpan Tampilan
+    </button>
+    <p class="text-xs text-slate-400 text-center">Perubahan langsung berlaku ke seluruh aplikasi setelah disimpan.</p>
+  </form>
+
+  <div class="card p-6 sticky top-20 h-fit">
+    <h3 class="font-bold text-slate-700 mb-4 flex items-center gap-2">
+      {{ ico.icon('eye', 'w-4 h-4 text-brand') }} Preview
+    </h3>
+    <div class="rounded-2xl border border-slate-100 p-6 text-center" style="background: {{ theme.background_color }}">
+      {% if theme.logo_src %}
+        <img src="{{ theme.logo_src }}" alt="logo" class="w-12 h-12 rounded-2xl object-contain mx-auto mb-3 bg-white">
+      {% else %}
+        <div class="w-12 h-12 rounded-2xl mx-auto mb-3 grid place-items-center text-white font-bold" style="background: {{ theme.primary_color }}">H</div>
+      {% endif %}
+      <div class="font-extrabold" style="color: #1e293b">{{ theme.app_name }}</div>
+      <div class="text-xs text-slate-400 mb-4">{{ theme.company_name }}</div>
+      <div class="text-sm italic text-slate-500 mb-4">"{{ theme.login_tagline }}"</div>
+      <button type="button" class="px-5 py-2 rounded-xl text-white text-sm font-semibold" style="background: {{ theme.primary_color }}">Sign In</button>
+    </div>
+
+    <div class="mt-4 rounded-xl bg-slate-50 p-3 text-xs text-slate-500 space-y-1.5">
+      <div class="font-semibold text-slate-600 flex items-center gap-1.5">
+        {{ ico.icon('alert', 'w-3.5 h-3.5') }} Batas ukuran file
+      </div>
+      <div class="flex justify-between"><span>Logo</span><span class="font-mono">maks {{ config.MAX_LOGO_BYTES // 1024 }} KB</span></div>
+      <div class="flex justify-between"><span>Favicon</span><span class="font-mono">maks {{ config.MAX_FAVICON_BYTES // 1024 }} KB</span></div>
+      <p class="pt-1 text-slate-400">
+        File melebihi batas akan ditolak beserta pesan ukurannya. Gunakan gambar persegi agar tidak
+        terpotong saat ditampilkan.
+      </p>
+    </div>
+
+    <p class="text-xs text-slate-400 mt-3">Untuk live preview instan, buka halaman login setelah menyimpan.</p>
+    <p class="text-xs text-slate-400 mt-2">Warna latar hanya dipakai pada mode terang &mdash; mode gelap memakai palet gelap bawaan aplikasi.</p>
+  </div>
+</div>
+{% endblock %}

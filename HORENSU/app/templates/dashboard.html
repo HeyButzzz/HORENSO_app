@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% import "partials/macros.html" as m %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="mb-8 fade-up">
+  <h1 class="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
+    {{ greeting }}, {{ current_user.full_name.split(' ')[0] }}
+    <span class="text-brand">{{ ico.icon('hand', 'w-6 h-6') }}</span>
+  </h1>
+  <p class="text-slate-400 mt-1">Ada yang ingin Anda lakukan hari ini?</p>
+</div>
+
+<div class="flex flex-wrap gap-3 mb-8 fade-up" style="animation-delay:.05s">
+  <a href="{{ url_for('problems.new_problem') }}" class="btn-primary flex items-center gap-2">
+    {{ ico.icon('plus', 'w-4 h-4') }} Laporkan Masalah
+  </a>
+  <a href="{{ url_for('problems.list_problems') }}" class="btn-soft flex items-center gap-2">
+    {{ ico.icon('clipboard', 'w-4 h-4') }} Lihat Semua Laporan
+  </a>
+</div>
+
+{% if pending_ack %}
+<div class="card p-5 mb-6 border-amber-200 bg-amber-50/50 fade-up" style="animation-delay:.03s">
+  <div class="flex items-start justify-between gap-3 mb-1">
+    <h2 class="font-bold text-amber-700 flex items-center gap-2">
+      {{ ico.icon('shield', 'w-4 h-4') }} Menunggu konfirmasi mengetahui
+    </h2>
+    <span class="pill bg-white/70 text-amber-700">{{ pending_ack|length }}</span>
+  </div>
+  <p class="text-xs text-amber-600 mb-3">
+    Laporan berikut sudah diselesaikan di tingkat bawah. Anda cukup membuka dan mencentang konfirmasi.
+  </p>
+  <div class="space-y-2 stagger">
+    {% for p in pending_ack %}
+      <a href="{{ url_for('problems.detail', problem_id=p.id) }}"
+         class="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/70 hover:bg-white transition hover:translate-x-1">
+        <div class="min-w-0">
+          <div class="text-sm font-semibold text-slate-700 truncate">{{ p.title }}</div>
+          <div class="text-xs text-slate-400">
+            #{{ p.code }} &middot; diselesaikan oleh
+            {{ p.resolved_by.full_name if p.resolved_by else '-' }} ({{ p.resolved_by_role_label }})
+          </div>
+        </div>
+        <span class="pill bg-amber-100 text-amber-700 shrink-0">{{ ico.icon('check', 'w-3.5 h-3.5') }} Konfirmasi</span>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8 stagger">
+  {% for code, count in status_counts.items() %}
+    <div class="card lift p-4 text-center">
+      <div class="text-2xl font-extrabold text-slate-800">{{ count }}</div>
+      <div class="text-xs text-slate-400 mt-1">{{ code.replace('_',' ').title() }}</div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="grid lg:grid-cols-2 gap-6 mb-8 stagger">
+  <div class="card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-slate-700 flex items-center gap-2">
+        {{ ico.icon('target', 'w-4 h-4 text-brand') }} Butuh Tindakan Anda
+      </h2>
+      <span class="pill bg-amber-50 text-amber-600">{{ action_problems|length }}</span>
+    </div>
+    {% if action_problems %}
+      <div class="space-y-2 stagger">
+        {% for p in action_problems %}
+          <a href="{{ url_for('problems.detail', problem_id=p.id) }}"
+             class="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-slate-50 transition hover:translate-x-1">
+            <div class="min-w-0">
+              <div class="text-sm font-semibold text-slate-700 truncate">{{ p.title }}</div>
+              <div class="text-xs text-slate-400">#{{ p.code }}</div>
+            </div>
+            {{ m.priority_pill(p.priority) }}
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="py-8 text-center">
+        <span class="inline-block text-emerald-400 mb-2">{{ ico.icon('check-circle', 'w-8 h-8 mx-auto') }}</span>
+        <p class="text-sm text-slate-400">Tidak ada tindakan yang menunggu. Kerja bagus!</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-bold text-slate-700 flex items-center gap-2">
+        {{ ico.icon('message', 'w-4 h-4 text-brand') }} Menunggu Keputusan
+      </h2>
+      <span class="pill bg-sky-50 text-sky-600">{{ waiting_decision|length }}</span>
+    </div>
+    {% if waiting_decision %}
+      <div class="space-y-2 stagger">
+        {% for p in waiting_decision %}
+          <a href="{{ url_for('problems.detail', problem_id=p.id) }}"
+             class="flex items-center justify-between gap-3 p-3 rounded-xl hover:bg-slate-50 transition hover:translate-x-1">
+            <div class="min-w-0">
+              <div class="text-sm font-semibold text-slate-700 truncate">{{ p.title }}</div>
+              <div class="text-xs text-slate-400">#{{ p.code }}</div>
+            </div>
+            {{ m.status_pill(p.status) }}
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="py-8 text-center">
+        <span class="inline-block text-slate-300 mb-2">{{ ico.icon('inbox', 'w-8 h-8 mx-auto') }}</span>
+        <p class="text-sm text-slate-400">Tidak ada konsultasi yang menunggu.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}Categories{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+  {{ ico.icon('settings', 'w-5 h-5 text-slate-400') }} Administration
+</h1>
+{% include "admin/_nav.html" %}
+
+<div class="card p-6 mb-6 fade-up" x-data="{ open: false }">
+  <button type="button" @click="open = !open" class="w-full flex items-center justify-between gap-3 text-left">
+    <h3 class="font-bold text-slate-700 flex items-center gap-2">
+      {{ ico.icon('plus', 'w-4 h-4 text-brand') }} Tambah Kategori
+    </h3>
+    <span class="text-slate-400 transition-transform duration-300" :class="open ? 'rotate-180' : ''">
+      {{ ico.icon('chevron-down', 'w-4 h-4') }}
+    </span>
+  </button>
+  <div x-show="open" x-cloak
+       x-transition:enter="transition ease-out duration-300"
+       x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+    <form method="post" action="{{ url_for('admin.create_category') }}" class="space-y-3 mt-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div>
+        <label class="label">Nama kategori</label>
+        <input type="text" name="name" required placeholder="Contoh: Instrument" class="input">
+      </div>
+      <div>
+        <label class="label">Referensi / contoh cakupan</label>
+        <textarea name="reference" rows="2" class="input"
+                  placeholder="Pisahkan dengan koma. Contoh: Instrumen uji (HPLC, GC), peralatan penunjang pengujian, kolom kromatografi"></textarea>
+        <p class="text-xs text-slate-400 mt-1">
+          Referensi ini tampil sebagai panduan saat pelapor memilih kategori.
+        </p>
+      </div>
+      <button class="btn-primary flex items-center gap-2">{{ ico.icon('check', 'w-4 h-4') }} Tambah</button>
+    </form>
+  </div>
+</div>
+
+<div class="card divide-y divide-slate-50 stagger fade-up" style="animation-delay:.06s">
+  {% for c in categories %}
+    <form method="post" action="{{ url_for('admin.edit_category', cat_id=c.id) }}" class="p-4 space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="text-slate-300 shrink-0">{{ ico.icon('tag', 'w-4 h-4') }}</span>
+        <input type="text" name="name" value="{{ c.name }}" required class="input flex-1 min-w-[180px] font-medium">
+        <label class="flex items-center gap-2 text-xs text-slate-500 cursor-pointer shrink-0">
+          <input type="checkbox" name="is_active" {{ 'checked' if c.is_active }}> Aktif
+        </label>
+        <button class="btn-soft text-xs flex items-center gap-1.5 shrink-0">
+          {{ ico.icon('check', 'w-3.5 h-3.5') }} Simpan
+        </button>
+      </div>
+
+      <div>
+        <label class="label !text-xs">Referensi cakupan</label>
+        <textarea name="reference" rows="2" class="input !text-xs"
+                  placeholder="Pisahkan dengan koma agar tampil sebagai daftar untuk pelapor">{{ c.reference or '' }}</textarea>
+        {% if c.reference_items %}
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            {% for item in c.reference_items %}
+              <span class="pill bg-slate-100 text-slate-500 !text-[11px]">{{ item }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </form>
+  {% endfor %}
+</div>
+
+<p class="text-xs text-slate-400 mt-3">
+  Referensi mengikuti penamaan yang lazim pada jurnal pengujian laboratorium &mdash; silakan sesuaikan
+  dengan istilah yang dipakai di lab Anda.
+</p>
+{% endblock %}

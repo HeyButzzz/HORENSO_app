@@ -1,0 +1,91 @@
+{% import "partials/icons.html" as ico %}
+<aside class="sidebar fixed md:sticky top-0 left-0 h-screen z-40 flex flex-col shrink-0 py-5 px-3"
+       :class="{
+         'is-collapsed': collapsed && !mobileOpen,
+         'translate-x-0': mobileOpen,
+         '-translate-x-full md:translate-x-0': !mobileOpen
+       }">
+
+  <a href="{{ url_for('main.dashboard') }}" class="brand flex items-center gap-2.5 px-2 mb-7 group">
+    {% if theme and theme.logo_src %}
+      <img src="{{ theme.logo_src }}" class="w-9 h-9 rounded-xl object-contain bg-white shrink-0 transition-transform group-hover:scale-105" alt="logo">
+    {% else %}
+      <div class="w-9 h-9 rounded-xl bg-brand text-white grid place-items-center font-bold text-sm shrink-0 transition-transform group-hover:scale-105 group-hover:rotate-3">H</div>
+    {% endif %}
+    <div class="nav-text">
+      <div class="font-extrabold text-slate-800 leading-tight">{{ theme.app_name if theme else 'HORENSO' }}</div>
+      <div class="text-[11px] text-slate-400 leading-tight">{{ theme.company_name if theme else '' }}</div>
+    </div>
+  </a>
+
+  <a href="{{ url_for('problems.new_problem') }}"
+     data-tip="Laporkan Masalah"
+     class="has-tip nav-link !text-white mb-5 justify-center gap-2 rounded-2xl bg-brand font-semibold py-3 shadow-md shadow-brand/20 hover:opacity-90 hover:!text-white">
+    {{ ico.icon('plus', 'w-5 h-5') }}<span class="nav-text">Laporkan Masalah</span>
+  </a>
+
+  <nav class="flex-1 space-y-1 text-sm overflow-y-auto overflow-x-hidden -mx-1 px-1">
+    {% macro navlink(endpoint, icon_name, label, params={}, active_when=none) %}
+      {% set is_active = (active_when if active_when is not none else request.endpoint == endpoint) %}
+      <a href="{{ url_for(endpoint, **params) }}" data-tip="{{ label }}"
+         class="has-tip nav-link {{ 'is-active' if is_active }}">
+        {{ ico.icon(icon_name, 'w-5 h-5') }}<span class="nav-text">{{ label }}</span>
+      </a>
+    {% endmacro %}
+
+    {% set team_view = request.endpoint == 'problems.list_problems' and request.args.get('department') %}
+    {{ navlink('main.dashboard', 'home', 'Dashboard') }}
+    {{ navlink('problems.list_problems', 'clipboard', 'Problem Saya',
+               active_when=(request.endpoint == 'problems.list_problems' and not team_view)) }}
+    {% if current_user.role != 'user' and current_user.department_id %}
+      {{ navlink('problems.list_problems', 'users', 'Team Problems',
+                 {'department': current_user.department_id}, active_when=team_view) }}
+    {% endif %}
+
+    <a href="{{ url_for('main.notifications') }}" data-tip="Notifikasi"
+       class="has-tip nav-link {{ 'is-active' if request.endpoint == 'main.notifications' }}">
+      <span class="relative shrink-0">
+        {{ ico.icon('bell', 'w-5 h-5') }}
+        {% if unread_notif_count and unread_notif_count > 0 %}
+          <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-transparent"></span>
+        {% endif %}
+      </span>
+      <span class="nav-text flex-1">Notifikasi</span>
+      {% if unread_notif_count and unread_notif_count > 0 %}
+        <span class="nav-text pill bg-rose-50 text-rose-600 !px-2">{{ unread_notif_count if unread_notif_count < 9 else '9+' }}</span>
+      {% endif %}
+    </a>
+
+    {% if current_user.role == 'admin' %}
+      {{ navlink('admin.index', 'chart', 'Analytics') }}
+    {% endif %}
+  </nav>
+
+  <div class="pt-4 mt-4 border-t border-slate-100 space-y-2 text-sm">
+    {% if current_user.role == 'admin' %}
+      <a href="{{ url_for('admin.users') }}" data-tip="Administration" class="has-tip nav-link">
+        {{ ico.icon('settings', 'w-5 h-5') }}<span class="nav-text">Administration</span>
+      </a>
+    {% endif %}
+
+    {# ---- Light / dark control, pinned to the bottom of the rail ---- #}
+    <div class="theme-switch" role="group" aria-label="Mode tampilan">
+      <button type="button" @click="setTheme('light')" :class="{ 'is-on': theme === 'light' }" title="Mode terang">
+        {{ ico.icon('sun', 'w-4 h-4') }}<span class="nav-text">Terang</span>
+      </button>
+      <button type="button" @click="setTheme('dark')" :class="{ 'is-on': theme === 'dark' }" title="Mode gelap">
+        {{ ico.icon('moon', 'w-4 h-4') }}<span class="nav-text">Gelap</span>
+      </button>
+    </div>
+
+    {# ---- Collapse / expand the rail ---- #}
+    <button type="button" @click="toggleSidebar()"
+            class="rail-btn has-tip" :data-tip="collapsed ? 'Perluas menu' : 'Ciutkan menu'"
+            :aria-expanded="(!collapsed).toString()" aria-label="Ciutkan menu">
+      <span class="transition-transform duration-300 shrink-0" :class="collapsed ? 'rotate-180' : ''">
+        {{ ico.icon('chevron-left', 'w-5 h-5') }}
+      </span>
+      <span class="nav-text">Ciutkan menu</span>
+    </button>
+  </div>
+</aside>

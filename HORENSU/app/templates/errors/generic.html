@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as ico %}
+{% block title %}{{ code }}{% endblock %}
+
+{% macro error_body(cta_url, cta_label) %}
+<div class="max-w-md mx-auto text-center py-20 fade-up">
+  <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 grid place-items-center mx-auto mb-4 pop-in">
+    {{ ico.icon(icon_name if icon_name else 'alert', 'w-8 h-8') }}
+  </div>
+  <div class="text-xs font-mono text-slate-400 mb-1">{{ code }}</div>
+  <h1 class="text-xl font-bold text-slate-800 mb-2">{{ heading }}</h1>
+  <p class="text-slate-400 mb-6">{{ message }}</p>
+  <a href="{{ cta_url }}" class="btn-primary inline-flex items-center gap-2">
+    {{ ico.icon('arrow-left', 'w-4 h-4') }} {{ cta_label }}
+  </a>
+</div>
+{% endmacro %}
+
+{% block content %}{{ error_body(url_for('main.dashboard'), 'Kembali ke Dashboard') }}{% endblock %}
+{% block guest_content %}{{ error_body(url_for('auth.login'), 'Ke Halaman Masuk') }}{% endblock %}

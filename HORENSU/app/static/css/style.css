@@ -1,0 +1,389 @@
+/* ============================================================================
+   HORENSU — application stylesheet
+
+   Structure
+     1. Tokens (light + dark)
+     2. Base / scrollbars
+     3. Components (card, pill, input, buttons, HORENSU track)
+     4. Sidebar rail (expanded <-> collapsed) + tooltips
+     5. Motion (entrance animations, stagger, hover lift)
+     6. Dark-mode retrofit for the Tailwind utilities used in the templates
+   ========================================================================== */
+
+/* ------------------------------------------------------------- 1. TOKENS - */
+:root {
+  /* --color-primary / secondary / accent / bg are injected per-theme in base.html */
+  --surface: #ffffff;          /* cards, sidebar, topbar                    */
+  --surface-2: #f8fafc;        /* subtle fills (slate-50 equivalent)        */
+  --surface-3: #f1f5f9;        /* stronger fills (slate-100 equivalent)     */
+  --surface-4: #e2e8f0;        /* slate-200 equivalent                      */
+  --line: #f1f5f9;             /* hairline borders                          */
+  --line-strong: #e2e8f0;
+  --text-1: #1e293b;           /* headings                                  */
+  --text-2: #334155;
+  --text-3: #475569;
+  --text-4: #64748b;
+  --text-muted: #94a3b8;       /* slate-400 — labels, meta                  */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px -12px rgba(15, 23, 42, .08);
+  --shadow-md: 0 4px 10px rgba(15, 23, 42, .06), 0 18px 40px -18px rgba(15, 23, 42, .18);
+  --ring: rgba(79, 70, 229, .15);
+  --sidebar-w: 16rem;
+  --sidebar-w-collapsed: 5rem;
+}
+
+html.dark {
+  --surface: #131a2a;
+  --surface-2: #1a2334;
+  --surface-3: #212c40;
+  --surface-4: #2c3852;
+  --line: #222e44;
+  --line-strong: #2e3b54;
+  --text-1: #eef2f8;
+  --text-2: #dde4ef;
+  --text-3: #c3cddd;
+  --text-4: #a3b0c4;
+  --text-muted: #8493ab;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px -14px rgba(0, 0, 0, .65);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, .38), 0 22px 46px -20px rgba(0, 0, 0, .75);
+  --ring: rgba(129, 140, 248, .3);
+  color-scheme: dark;
+}
+
+/* The per-tenant background colour is a light value; in dark mode the app
+   paints its own ground instead so branding never washes the UI out. */
+html.dark body { background: #0d1320 !important; color: var(--text-2); }
+
+/* --------------------------------------------------------------- 2. BASE - */
+[x-cloak] { display: none !important; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  transition: background-color .3s ease, color .3s ease;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+* { scrollbar-color: var(--surface-4) transparent; scrollbar-width: thin; }
+
+.ico { flex-shrink: 0; }
+
+/* --------------------------------------------------------- 3. COMPONENTS - */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: background-color .3s ease, border-color .3s ease, box-shadow .25s ease, transform .25s ease;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.horensu-track { display: flex; align-items: center; gap: 0.25rem; }
+.horensu-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--surface-4);
+  flex-shrink: 0;
+  transition: background-color .35s ease, box-shadow .35s ease;
+}
+.horensu-dot.done {
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+.horensu-line { height: 2px; width: 1.1rem; background: var(--surface-4); transition: background-color .35s ease; }
+.horensu-line.done { background: var(--color-primary); }
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 1rem;
+  font-weight: 600;
+  padding: 0.65rem 1.25rem;
+  transition: transform .18s ease, box-shadow .18s ease, opacity .15s ease;
+}
+.btn-primary:hover { opacity: .94; transform: translateY(-1px); box-shadow: 0 8px 20px -8px var(--color-primary); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-soft {
+  background: var(--surface-3);
+  color: var(--text-2);
+  border-radius: 1rem;
+  font-weight: 600;
+  padding: 0.65rem 1.25rem;
+  transition: background-color .18s ease, transform .18s ease;
+}
+.btn-soft:hover { background: var(--surface-4); transform: translateY(-1px); }
+.btn-soft:active { transform: translateY(0); }
+
+.input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.85rem;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.9rem;
+  background: var(--surface);
+  color: var(--text-2);
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .3s ease;
+}
+.input::placeholder { color: var(--text-muted); }
+.input:focus { outline: none; box-shadow: 0 0 0 3px var(--ring); border-color: var(--color-primary); }
+.input option { background: var(--surface); color: var(--text-2); }
+html.dark .input option { background: #1a2334; }
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-3);
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+/* ------------------------------------------------------------ 4. SIDEBAR - */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  transition: width .28s cubic-bezier(.4, 0, .2, 1), background-color .3s ease, border-color .3s ease, transform .28s cubic-bezier(.4, 0, .2, 1);
+}
+.sidebar.is-collapsed { width: var(--sidebar-w-collapsed); }
+
+/* Text that folds away when the rail collapses. */
+.sidebar .nav-text {
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 1;
+  max-width: 12rem;
+  transition: opacity .18s ease, max-width .28s cubic-bezier(.4, 0, .2, 1);
+}
+.sidebar.is-collapsed .nav-text { opacity: 0; max-width: 0; }
+.sidebar.is-collapsed .nav-link,
+.sidebar.is-collapsed .rail-btn { justify-content: center; padding-left: .6rem; padding-right: .6rem; }
+.sidebar.is-collapsed .brand { justify-content: center; }
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.85rem;
+  font-weight: 500;
+  color: var(--text-4);
+  position: relative;
+  transition: background-color .18s ease, color .18s ease, transform .18s ease;
+}
+.nav-link:hover { background: var(--surface-2); color: var(--text-1); transform: translateX(2px); }
+.nav-link.is-active { background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary); }
+.nav-link.is-active::before {
+  content: "";
+  position: absolute;
+  left: -0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+/* Tooltip shown for icon-only items while the rail is collapsed. */
+.sidebar.is-collapsed .has-tip { position: relative; }
+.sidebar.is-collapsed .has-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + .6rem);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--text-1);
+  color: var(--surface);
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .3rem .6rem;
+  border-radius: .5rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+  z-index: 60;
+}
+.sidebar.is-collapsed .has-tip:hover::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+.rail-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.85rem;
+  font-weight: 500;
+  color: var(--text-4);
+  transition: background-color .18s ease, color .18s ease;
+}
+.rail-btn:hover { background: var(--surface-2); color: var(--text-1); }
+
+/* Light/dark switch: a two-slot segmented control. */
+.theme-switch {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .25rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.theme-switch button {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  padding: .4rem .5rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: background-color .2s ease, color .2s ease, transform .2s ease;
+}
+.theme-switch button:hover { color: var(--text-2); }
+.theme-switch button.is-on {
+  background: var(--surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+.sidebar.is-collapsed .theme-switch { flex-direction: column; border-radius: 1rem; }
+.sidebar.is-collapsed .theme-switch button { padding: .45rem 0; }
+
+/* -------------------------------------------------------------- 5. MOTION */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(.94); }
+  60%  { transform: scale(1.015); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Entrance: every direct child of a .stagger container fades up in sequence. */
+.fade-up { animation: fadeUp .45s cubic-bezier(.22, 1, .36, 1) both; }
+.fade-in { animation: fadeIn .4s ease both; }
+.slide-right { animation: slideRight .4s cubic-bezier(.22, 1, .36, 1) both; }
+.pop-in { animation: popIn .34s cubic-bezier(.22, 1, .36, 1) both; }
+
+.stagger > * { animation: fadeUp .5s cubic-bezier(.22, 1, .36, 1) both; }
+.stagger > *:nth-child(1)  { animation-delay: .02s; }
+.stagger > *:nth-child(2)  { animation-delay: .06s; }
+.stagger > *:nth-child(3)  { animation-delay: .10s; }
+.stagger > *:nth-child(4)  { animation-delay: .14s; }
+.stagger > *:nth-child(5)  { animation-delay: .18s; }
+.stagger > *:nth-child(6)  { animation-delay: .22s; }
+.stagger > *:nth-child(7)  { animation-delay: .26s; }
+.stagger > *:nth-child(8)  { animation-delay: .30s; }
+.stagger > *:nth-child(9)  { animation-delay: .34s; }
+.stagger > *:nth-child(10) { animation-delay: .38s; }
+.stagger > *:nth-child(n+11) { animation-delay: .42s; }
+
+/* Route-level entrance for the main column. */
+.page-enter { animation: fadeUp .4s cubic-bezier(.22, 1, .36, 1) both; }
+
+/* Anything that lifts on hover (cards, list rows). */
+.lift { transition: transform .22s cubic-bezier(.22, 1, .36, 1), box-shadow .22s ease; }
+.lift:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+
+/* Interactive rows / tab buttons. */
+.tab-btn { transition: background-color .2s ease, color .2s ease, transform .2s ease; }
+.tab-btn:hover { transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------- 6. DARK RETROFIT FOR TAILWIND UTILITIES - */
+/* The templates use literal Tailwind colour utilities. Rather than annotating
+   every element with dark: variants, the palette is remapped here — the
+   `html.dark .x` selectors outrank the CDN's single-class rules. */
+
+html.dark .bg-white       { background-color: var(--surface) !important; }
+html.dark .bg-white\/80   { background-color: color-mix(in srgb, var(--surface) 85%, transparent) !important; }
+html.dark .bg-slate-50    { background-color: var(--surface-2) !important; }
+html.dark .bg-slate-100   { background-color: var(--surface-3) !important; }
+html.dark .bg-slate-200   { background-color: var(--surface-4) !important; }
+html.dark .hover\:bg-slate-50:hover  { background-color: var(--surface-2) !important; }
+html.dark .hover\:bg-slate-100:hover { background-color: var(--surface-3) !important; }
+
+html.dark .text-slate-800 { color: var(--text-1) !important; }
+html.dark .text-slate-700 { color: var(--text-2) !important; }
+html.dark .text-slate-600 { color: var(--text-3) !important; }
+html.dark .text-slate-500 { color: var(--text-4) !important; }
+html.dark .text-slate-400 { color: var(--text-muted) !important; }
+html.dark .text-slate-300 { color: var(--text-muted) !important; }
+html.dark .hover\:text-slate-800:hover { color: var(--text-1) !important; }
+
+html.dark .border-slate-50  { border-color: var(--line) !important; }
+html.dark .border-slate-100 { border-color: var(--line) !important; }
+html.dark .border-slate-200 { border-color: var(--line-strong) !important; }
+html.dark .divide-slate-50  > * + * { border-color: var(--line) !important; }
+html.dark .divide-slate-100 > * + * { border-color: var(--line) !important; }
+
+/* Tinted status surfaces: keep the hue, drop the luminance. */
+html.dark .bg-emerald-50  { background-color: rgba(16, 185, 129, .13) !important; }
+html.dark .bg-emerald-50\/40 { background-color: rgba(16, 185, 129, .10) !important; }
+html.dark .bg-sky-50      { background-color: rgba(14, 165, 233, .14) !important; }
+html.dark .bg-amber-50    { background-color: rgba(245, 158, 11, .14) !important; }
+html.dark .bg-amber-50\/50 { background-color: rgba(245, 158, 11, .11) !important; }
+html.dark .bg-rose-50     { background-color: rgba(244, 63, 94, .14) !important; }
+
+html.dark .text-emerald-800, html.dark .text-emerald-700,
+html.dark .text-emerald-600, html.dark .text-emerald-500 { color: #4ade9f !important; }
+html.dark .text-sky-800, html.dark .text-sky-600 { color: #5ec2f5 !important; }
+html.dark .text-amber-800, html.dark .text-amber-700,
+html.dark .text-amber-600 { color: #f6bf5a !important; }
+html.dark .text-rose-800, html.dark .text-rose-600,
+html.dark .text-rose-500 { color: #fb7a90 !important; }
+
+html.dark .border-emerald-200, html.dark .border-emerald-100 { border-color: rgba(16, 185, 129, .28) !important; }
+html.dark .border-sky-200   { border-color: rgba(14, 165, 233, .28) !important; }
+html.dark .border-amber-200, html.dark .border-amber-100 { border-color: rgba(245, 158, 11, .28) !important; }
+html.dark .border-rose-200  { border-color: rgba(244, 63, 94, .28) !important; }
+
+/* Pills built from inline `background: <hex>22` stay readable on a dark ground. */
+html.dark .pill[style*="background"] { filter: saturate(1.15) brightness(1.28); }
+
+/* Auth screens: the branded wash follows the theme in light, the app's own
+   dark ground in dark (the tenant background colour is always a light value). */
+.auth-bg {
+  background: radial-gradient(circle at top, color-mix(in srgb, var(--auth-tint) 12%, transparent), var(--auth-ground) 60%);
+}
+html.dark .auth-bg {
+  background: radial-gradient(circle at top, color-mix(in srgb, var(--auth-tint) 26%, transparent), #0d1320 62%);
+}
+
+/* Native form controls. */
+html.dark input[type="file"] { color: var(--text-4); }
+html.dark input[type="date"]::-webkit-calendar-picker-indicator,
+html.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(.75); }
